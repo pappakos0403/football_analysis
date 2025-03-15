@@ -1,5 +1,4 @@
 from ultralytics import YOLO
-import cv2
 from utils.video_utils import load_video, generate_output_video
 
 def detect_video(video_path, output_video_path, model):
@@ -11,7 +10,15 @@ def detect_video(video_path, output_video_path, model):
     # Detektálás az összes képkockán
     for frame in frames:
         results = model(frame)
+
+        # Kapus átállítása játékosra
+        # boxes.data tensor oszlopainál a cls átállítása 2-ről 1-re
+        boxes = results[0].boxes
+        boxes_data = boxes.data.clone()
+        boxes_data.data[boxes.data[:, 5] == 1, 5] = 2
+        boxes.data = boxes_data
         
+            
         # Annotált képkockák generálása
         annotated_frame = results[0].plot()
         annotated_frames.append(annotated_frame)
