@@ -61,10 +61,6 @@ def detect_video(video_path, output_video_path, model):
                 player_counter += 1
 
         annotated_frames.append(annotated_frame)
-            
-        """# Annotált képkockák generálása
-        annotated_frame = results[0].plot()
-        annotated_frames.append(annotated_frame)"""
     
     # Detektált output videó generálása
     generate_output_video(annotated_frames, fps, width, height, output_video_path)

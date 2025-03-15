@@ -12,5 +12,3 @@ model = YOLO("models\\best.pt")
 video_path = "input_videos\\szoboszlai.mp4"
 output_video_path = "output_videos\\output_video.avi"
 detect_video(video_path, output_video_path, model)
-
-print(model.names)
