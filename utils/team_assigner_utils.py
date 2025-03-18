@@ -17,3 +17,13 @@ def get_upper_body_image(frame, bbox):
 
     # Felső test kép mentése
     cv2.imwrite("test_image\\upper_body.jpg", upper_body_image)
+
+def get_clustering_model(image):
+    # Kép átalakítása 2D-s tömbbé
+    image_2d = image.reshape(-1, 3)
+
+    # K-means modell létrehozása és tanítása
+    kmeans = KMeans(n_clusters=2, init="k-means++", random_state=0)
+    kmeans.fit(image_2d)
+
+    return kmeans
