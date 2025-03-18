@@ -1,29 +1,63 @@
 from sklearn.cluster import KMeans
 import cv2
+import numpy as np
 
-def get_upper_body_image(frame, bbox):
-    # A frame adott játékosának felső testét tartalmazó kép kivágása
-    x1, y1, x2, y2, = bbox
-    x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+class TeamAssigner:
 
-    # Bbox magassága
-    bbox_height = y2 - y1
+    def get_upper_body_image(self, frame, bbox):
+        # A frame adott játékosának felső testét tartalmazó kép kivágása
+        x1, y1, x2, y2, = bbox
+        x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
 
-    # Bbox felső részének végpontja
-    upper_body_y = y1 + int(0.5 * bbox_height)
+        # Bbox magassága
+        bbox_height = y2 - y1
 
-    # Felső test
-    upper_body_image = frame[y1:upper_body_y, x1:x2]
+        # Bbox felső részének végpontja
+        upper_body_y = y1 + int(0.5 * bbox_height)
 
-    # Felső test kép mentése
-    cv2.imwrite("test_image\\upper_body.jpg", upper_body_image)
+        # Felső test
+        upper_body_image = frame[y1:upper_body_y, x1:x2]
 
-def get_clustering_model(image):
-    # Kép átalakítása 2D-s tömbbé
-    image_2d = image.reshape(-1, 3)
+        # Felső test kép mentése
+        cv2.imwrite("test_image\\upper_body.jpg", upper_body_image)
 
-    # K-means modell létrehozása és tanítása
-    kmeans = KMeans(n_clusters=2, init="k-means++", random_state=0)
-    kmeans.fit(image_2d)
+        return upper_body_image
 
-    return kmeans
+    def get_clustering_model(self, image):
+        # Kép átalakítása 2D-s tömbbé
+        image_2d = image.reshape(-1, 3)
+
+        # K-means modell létrehozása és tanítása
+        kmeans = KMeans(n_clusters=2, init="k-means++", random_state=0)
+        kmeans.fit(image_2d)
+
+        return kmeans
+
+    def get_player_color(self, image):
+        # Klaszterező modell létrehozása a képből
+        kmeans = self.get_clustering_model(image)
+
+        # Pixelek klaszterének meghatározása
+        labels = kmeans.labels_
+
+        # Klaszterezett kép létrehozása
+        clustered_image = labels.reshape(image.shape[0], image.shape[1])
+
+        clustered_image_scaled = (clustered_image * 255).astype(np.uint8)
+        colored_clustered_image = cv2.applyColorMap(clustered_image_scaled, cv2.COLORMAP_JET)
+        cv2.imwrite("test_image\\clustered_image.jpg", colored_clustered_image)
+
+
+        # Klaszterezett kép sarkainak meghatározása
+        corner_clusters = [clustered_image[0, 0], clustered_image[0, -1], 
+                           clustered_image[-1, 0], clustered_image[-1, -1]]
+        
+        # A játékos klaszter meghatározása
+        non_player_cluster = max(set(corner_clusters), key=corner_clusters.count)
+        player_cluster = 1 - non_player_cluster
+
+        # A játékos klaszter színének meghatározása
+        player_color = kmeans.cluster_centers_[player_cluster]
+
+        return player_color
+

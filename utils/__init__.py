@@ -1,3 +1,3 @@
 from .video_utils import load_video, generate_output_video
 from .bbox_utils import get_center_of_bbox, get_bbox_width
-from .team_assigner_utils import get_upper_body_image
+from .team_assigner_utils import TeamAssigner

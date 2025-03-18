@@ -1,7 +1,7 @@
 from ultralytics import YOLO
 from utils.video_utils import load_video, generate_output_video
 from utils.bbox_utils import get_center_of_bbox, get_bbox_width
-from utils.team_assigner_utils import get_upper_body_image
+from utils.team_assigner_utils import TeamAssigner
 import cv2
 
 def draw_ellipse(frame, bbox, color, track_id = None):
@@ -82,8 +82,12 @@ def detect_video(video_path, output_video_path, model):
 
         annotated_frames.append(annotated_frame)
 
+        # Játékos színének meghatározása
+        teamAssigner = TeamAssigner()
+
         if frame_num == 0:
-            upper_body_image = get_upper_body_image(frame, detected_objects["players"][0])
+            upper_body_image = teamAssigner.get_upper_body_image(frame, detected_objects["players"][0])
+            player_color = teamAssigner.get_player_color(upper_body_image)
     
     # Detektált output videó generálása
     generate_output_video(annotated_frames, fps, width, height, output_video_path)
