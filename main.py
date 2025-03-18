@@ -3,12 +3,12 @@ from tracker import detect_video
 
 from ultralytics import YOLO
 
-import cv2
-
 # Modell betöltése
 model = YOLO("models\\best.pt")
 
-# Detektálás a videón
+# Videófájl elérési útvonalai
 video_path = "input_videos\\szoboszlai.mp4"
 output_video_path = "output_videos\\output_video.avi"
+
+# Detektálás a videón
 detect_video(video_path, output_video_path, model)

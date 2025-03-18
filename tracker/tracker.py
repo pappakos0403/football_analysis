@@ -33,21 +33,30 @@ def detect_video(video_path, output_video_path, model):
     
     annotated_frames = []
     # Detektálás az összes képkockán
-    for frame in frames:
+    for frame_num, frame in enumerate(frames):
         player_counter = 1
         annotated_frame = frame.copy()
 
         results = model(frame)
 
+        # Az eredményekből a bounding boxok kinyerése
+        boxes = results[0].boxes
+
         # Kapus átállítása játékosra
         # boxes.data tensor oszlopainál a cls átállítása 2-ről 1-re (kapus -> játékos)
-        boxes = results[0].boxes
         boxes_data = boxes.data.clone()
         boxes_data.data[boxes.data[:, 5] == 1, 5] = 2
         boxes.data = boxes_data
 
-        # Boxes.data numpy tömbbé alakítása
+        # boxes.data numpy tömbbé alakítása
         boxes_np = boxes.data.cpu().numpy() if hasattr(boxes.data, "cpu") else boxes.data
+
+        # Külön kezeljük a játékosokat, a játékvezetőket és a labdát
+        detected_objects = {
+            "players": [], # cls: 2
+            "referees": [], # cls: 3
+            "ball": [] # cls: 0
+        }
 
         # Elipszis rajzolása a játékosok alá
         for box in boxes_np:
@@ -55,10 +64,15 @@ def detect_video(video_path, output_video_path, model):
             cls = int(cls)
 
             if cls == 2:
+                detected_objects["players"].append([x1, y1, x2, y2, conf])
                 bbox = [x1, y1, x2, y2]
                 color = (0, 255, 0)
                 annotated_frame = draw_ellipse(annotated_frame, bbox, color, track_id=player_counter)
                 player_counter += 1
+            elif cls == 3:
+                detected_objects["referees"].append([x1, y1, x2, y2, conf])
+            elif cls == 0:
+                detected_objects["ball"].append([x1, y1, x2, y2, conf])
 
         annotated_frames.append(annotated_frame)
     
