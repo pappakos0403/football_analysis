@@ -1,6 +1,7 @@
 from ultralytics import YOLO
 from utils.video_utils import load_video, generate_output_video
 from utils.bbox_utils import get_center_of_bbox, get_bbox_width
+from utils.team_assigner_utils import get_upper_body_image
 import cv2
 
 def draw_ellipse(frame, bbox, color, track_id = None):
@@ -63,18 +64,26 @@ def detect_video(video_path, output_video_path, model):
             x1, y1, x2, y2, conf, cls = box
             cls = int(cls)
 
+            # Játékosok
             if cls == 2:
-                detected_objects["players"].append([x1, y1, x2, y2, conf])
+                detected_objects["players"].append([x1, y1, x2, y2])
                 bbox = [x1, y1, x2, y2]
                 color = (0, 255, 0)
                 annotated_frame = draw_ellipse(annotated_frame, bbox, color, track_id=player_counter)
                 player_counter += 1
+
+            # Játékvezetők
             elif cls == 3:
-                detected_objects["referees"].append([x1, y1, x2, y2, conf])
+                detected_objects["referees"].append([x1, y1, x2, y2])
+
+            # Labda
             elif cls == 0:
-                detected_objects["ball"].append([x1, y1, x2, y2, conf])
+                detected_objects["ball"].append([x1, y1, x2, y2])
 
         annotated_frames.append(annotated_frame)
+
+        if frame_num == 0:
+            upper_body_image = get_upper_body_image(frame, detected_objects["players"][0])
     
     # Detektált output videó generálása
     generate_output_video(annotated_frames, fps, width, height, output_video_path)
