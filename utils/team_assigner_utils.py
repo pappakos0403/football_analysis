@@ -62,3 +62,14 @@ class TeamAssigner:
         player_color = kmeans.cluster_centers_[player_cluster]
 
         return player_color
+    
+    def get_player_to_team(self, color, team1_color, team2_color, id):
+        # Euklideszi távolság kiszámítása mindkét színhez
+        dist_to_team1 = np.linalg.norm(np.array(team1_color) - np.array(color))
+        dist_to_team2 = np.linalg.norm(np.array(team2_color) - np.array(color))
+
+        # Játékos besorolása a csapatába
+        if dist_to_team1 <= dist_to_team2:
+            return 1
+        else:
+            return 2

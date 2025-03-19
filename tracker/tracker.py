@@ -36,7 +36,6 @@ def detect_video(video_path, output_video_path, model):
     annotated_frames = []
     # Detektálás az összes képkockán
     for frame_num, frame in enumerate(frames):
-        player_counter = 1
         annotated_frame = frame.copy()
 
         results = model(frame)
@@ -68,10 +67,10 @@ def detect_video(video_path, output_video_path, model):
             # Játékosok
             if cls == 2:
                 detected_objects["players"].append([x1, y1, x2, y2])
-                bbox = [x1, y1, x2, y2]
-                color = (0, 255, 0)
-                annotated_frame = draw_ellipse(annotated_frame, bbox, color, track_id=player_counter)
-                player_counter += 1
+                # bbox = [x1, y1, x2, y2]
+                # color = (0, 255, 0)
+                # annotated_frame = draw_ellipse(annotated_frame, bbox, color, track_id=player_counter)
+                # player_counter += 1
 
             # Játékvezetők
             elif cls == 3:
@@ -85,7 +84,6 @@ def detect_video(video_path, output_video_path, model):
 
         # Játékos színének meghatározása
         teamAssigner = TeamAssigner()
-        id = 0
 
         if frame_num == 0:
             # Csapatok színének meghatározása
@@ -109,6 +107,17 @@ def detect_video(video_path, output_video_path, model):
                 color_diff = np.linalg.norm(np.array(team1_color) - np.array(player_color))
                 if color_diff > threshold:
                     team2_color = player_color
+                    break    
+
+        # Játékosok elipsziseinek rajzolása
+        for id, player in enumerate(detected_objects["players"]):
+            upper_body_image = teamAssigner.get_upper_body_image(frame, player, id)
+            player_color = teamAssigner.get_player_color(upper_body_image, id)
+            team_color_num = teamAssigner.get_player_to_team(player_color, team1_color, team2_color, id)
+            if team_color_num == 1:
+                annotated_frame = draw_ellipse(annotated_frame, player, team1_color, track_id=id)
+            elif team_color_num == 2:
+                annotated_frame = draw_ellipse(annotated_frame, player, team2_color, track_id=id)
     
     # Detektált output videó generálása
     generate_output_video(annotated_frames, fps, width, height, output_video_path)
