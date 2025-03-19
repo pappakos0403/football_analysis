@@ -9,17 +9,31 @@ class TeamAssigner:
         x1, y1, x2, y2, = bbox
         x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
 
+        #
+        if x2 <= x1 or y2 <= y1:
+            print(f"Hiba: A(z) {id}. játékos felső testének bounding boxa hibás!")
+            return np.array([])
+
         # Bbox magassága
         bbox_height = y2 - y1
 
         # Bbox felső részének végpontja
         upper_body_y = y1 + int(0.5 * bbox_height)
 
+        #
+        if upper_body_y <= y1:
+            print(f"Hiba: A(z) {id}. játékos felső testének bounding boxa hibás!")
+            return np.array([])
+
         # Felső test
         upper_body_image = frame[y1:upper_body_y, x1:x2]
 
+        #
+        if upper_body_image.size == 0:
+            print(f"Hiba: A(z) {id}. játékos felső testének képe üres!")
+
         # Felső test kép mentése
-        cv2.imwrite(f"test_image\\upper_body{id}.jpg", upper_body_image)
+        # cv2.imwrite(f"test_image\\upper_body{id}.jpg", upper_body_image)
 
         return upper_body_image
 
@@ -28,6 +42,10 @@ class TeamAssigner:
         # Kép átalakítása 2D-s tömbbé
         image_2d = image.reshape(-1, 3)
 
+        #
+        if image_2d.shape[0] < 2:
+            return None
+
         # K-means modell létrehozása és tanítása
         kmeans = KMeans(n_clusters=2, init="k-means++", random_state=0)
         kmeans.fit(image_2d)
@@ -35,8 +53,18 @@ class TeamAssigner:
         return kmeans
 
     def get_player_color(self, image, id):
+        # Ellenőrzés, hogy a kép üres-e
+        if image is None or image.size == 0 or image.shape[0] == 0 or image.shape[1] == 0:
+            print(f"Hiba: A(z) {id}. játékos felső testének képe üres! Klaszterezés kihagyása.")
+            return np.array([0, 0, 0])
+
         # Klaszterező modell létrehozása a képből
         kmeans = self.get_clustering_model(image)
+
+        #
+        if kmeans is None:
+            single_color = image.reshape(-1, 3)[0]
+            return single_color
 
         # Pixelek klaszterének meghatározása
         labels = kmeans.labels_
@@ -44,10 +72,10 @@ class TeamAssigner:
         #  Klaszterezett kép létrehozása
         clustered_image = labels.reshape(image.shape[0], image.shape[1])
 
-        clustered_image_scaled = (clustered_image * 255).astype(np.uint8)
-        colored_clustered_image = cv2.applyColorMap(clustered_image_scaled, cv2.COLORMAP_JET)
-        cv2.imwrite(f"test_image\\clustered_image{id}.jpg", colored_clustered_image)
-        id += 1
+        # clustered_image_scaled = (clustered_image * 255).astype(np.uint8)
+        # colored_clustered_image = cv2.applyColorMap(clustered_image_scaled, cv2.COLORMAP_JET)
+        # cv2.imwrite(f"test_image\\clustered_image{id}.jpg", colored_clustered_image)
+        # id += 1
 
 
         # Klaszterezett kép sarkainak meghatározása
