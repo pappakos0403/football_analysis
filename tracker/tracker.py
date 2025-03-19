@@ -3,6 +3,7 @@ from utils.video_utils import load_video, generate_output_video
 from utils.bbox_utils import get_center_of_bbox, get_bbox_width
 from utils.team_assigner_utils import TeamAssigner
 import cv2
+import numpy as np
 
 def draw_ellipse(frame, bbox, color, track_id = None):
     # Alsó koordináta a bbox alapján
@@ -84,13 +85,36 @@ def detect_video(video_path, output_video_path, model):
 
         # Játékos színének meghatározása
         teamAssigner = TeamAssigner()
+        id = 0
 
         if frame_num == 0:
-            upper_body_image = teamAssigner.get_upper_body_image(frame, detected_objects["players"][0])
-            player_color = teamAssigner.get_player_color(upper_body_image)
+            # Csapatok színének meghatározása
+            team1_color = None
+            team2_color = None
+            threshold = 70
+
+            for id, player in enumerate(detected_objects["players"]):
+
+                # Első csapat színének meghatározása
+                if team1_color is None:
+                    upper_body_image = teamAssigner.get_upper_body_image(frame, player, id)
+                    team1_color = teamAssigner.get_player_color(upper_body_image, id)
+                    continue
+
+                # Második csapat színének meghatározása
+                upper_body_image = teamAssigner.get_upper_body_image(frame, player, id)
+                player_color = teamAssigner.get_player_color(upper_body_image, id)
+
+                # Színkülönbség kiszámítása Euklideszi távolsággal
+                color_diff = np.linalg.norm(np.array(team1_color) - np.array(player_color))
+                if color_diff > threshold:
+                    team2_color = player_color
     
     # Detektált output videó generálása
     generate_output_video(annotated_frames, fps, width, height, output_video_path)
+
+    print(f"Team1 color: {team1_color}")
+    print(f"Team2 color: {team2_color}")
 
 if __name__ == "__main__":
     video_path = "input_videos\\szoboszlai.mp4"
