@@ -4,7 +4,7 @@ import numpy as np
 
 class TeamAssigner:
 
-    def get_upper_body_image(self, frame, bbox, id):
+    def get_upper_body_image(self, frame, bbox):
         # A frame adott játékosának felső testét tartalmazó kép kivágása
         x1, y1, x2, y2, = bbox
         x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
@@ -38,7 +38,7 @@ class TeamAssigner:
 
         return kmeans
 
-    def get_player_color(self, image, id):
+    def get_player_color(self, image):
         # Klaszterező modell létrehozása a képből
         kmeans = self.get_clustering_model(image)
 
@@ -67,7 +67,7 @@ class TeamAssigner:
 
         return player_color
     
-    def get_player_to_team(self, color, team1_color, team2_color, id):
+    def get_player_to_team(self, color, team1_color, team2_color):
         # Euklideszi távolság kiszámítása mindkét színhez
         dist_to_team1 = np.linalg.norm(np.array(team1_color) - np.array(color))
         dist_to_team2 = np.linalg.norm(np.array(team2_color) - np.array(color))

@@ -1,5 +1,4 @@
 from ultralytics import YOLO
-from utils.video_utils import load_video, generate_output_video
 from utils.bbox_utils import get_center_of_bbox, get_bbox_width
 from utils.team_assigner_utils import TeamAssigner
 import cv2
@@ -9,8 +8,15 @@ import supervision as sv
 
 class Tracker:
     def __init__(self, model_path):
+        # Tracker modellhez szükséges inicializáció
         self.model = YOLO(model_path)
         self.tracker = sv.ByteTrack()
+
+        # Csapatok színének meghatározásához szükséges változók
+        self.teamAssigner = TeamAssigner()
+        self.team1_color = None
+        self.team2_color = None
+        self.threshold = 70
 
     def draw_ellipse(self, frame, bbox, color, track_id = None):
         # Alsó koordináta a bbox alapján
@@ -59,9 +65,9 @@ class Tracker:
 
         # Háromszög csúcsainak meghatározása
         triangle_points = np.array([
-            [(x1 + x2) // 2, y1 + 20],  # Csúcs a labda felett
-            [x1, y1],                   # Bal alsó sarok
-            [x2, y1]                    # Jobb alsó sarok
+            [(x1 + x2) // 2, y1 - 15],  # Csúcs a labda felett
+            [x1, y1 - 30],         # Bal Felső sarok
+            [x2, y1 - 30]          # Jobb Felső sarok
         ], np.int32)
 
         # Háromszög kitöltése
@@ -72,23 +78,7 @@ class Tracker:
 
         return frame
 
-    def interpolate_ball_positions(self, ball_positions):
-            ball_positions = [x.get(1,{}).get('bbox',[]) for x in ball_positions]
-            df_ball_positions = pd.DataFrame(ball_positions,columns=['x1','y1','x2','y2'])
-
-            # Hiányzó értékek interpolálása
-            df_ball_positions = df_ball_positions.interpolate()
-            df_ball_positions = df_ball_positions.bfill()
-
-            ball_positions = [{1: {"bbox":x}} for x in df_ball_positions.to_numpy().tolist()]
-
-            return ball_positions
-
     def detect_video(self, frames, fps, width, height):
-        # Csapatok színéhez szüksges változók
-        team1_color = None
-        team2_color = None
-        threshold = 70
         
         annotated_frames = []
 
@@ -96,7 +86,7 @@ class Tracker:
         for frame_num, frame in enumerate(frames):
             annotated_frame = frame.copy()
 
-            # YOLO detekció
+            # Objektumok követése supervision-nel
             results = self.model(frame)
             detection_supervision = sv.Detections.from_ultralytics(results[0])
             tracked_objects = self.tracker.update_with_detections(detection_supervision)
@@ -137,56 +127,55 @@ class Tracker:
                 elif cls == 0:
                     detected_objects["ball"].append([x1, y1, x2, y2])
 
-            # Játékos színének meghatározása
-            teamAssigner = TeamAssigner()
-
             if frame_num == 0:
-                for id, player in enumerate(detected_objects["players"]):
-
+                for player in detected_objects["players"]:
                     # Első csapat színének meghatározása
-                    if team1_color is None:
-                        upper_body_image = teamAssigner.get_upper_body_image(frame, player, id)
-                        team1_color = teamAssigner.get_player_color(upper_body_image, id)
+                    if self.team1_color is None:
+                        upper_body_image = self.teamAssigner.get_upper_body_image(frame, player)
+                        self.team1_color = self.teamAssigner.get_player_color(upper_body_image)
                         continue
 
                     # Második csapat színének meghatározása
-                    upper_body_image = teamAssigner.get_upper_body_image(frame, player, id)
-                    player_color = teamAssigner.get_player_color(upper_body_image, id)
+                    upper_body_image = self.teamAssigner.get_upper_body_image(frame, player)
+                    player_color = self.teamAssigner.get_player_color(upper_body_image)
 
                     # Színkülönbség kiszámítása Euklideszi távolsággal
-                    color_diff = np.linalg.norm(np.array(team1_color) - np.array(player_color))
-                    if color_diff > threshold:
-                        team2_color = player_color
-                        break   
-            
-            # Elipszis a játékvezetők alatt
-            for bbox in detected_objects["referees"]:
-                if bbox in detected_objects["referees"]:
-                    referee_color = (0, 255, 255)
-                    annotated_frame = self.draw_ellipse(annotated_frame, bbox, referee_color, track_id=None)
+                    color_diff = np.linalg.norm(np.array(self.team1_color) - np.array(player_color))
+                    if color_diff > self.threshold:
+                        self.team2_color = player_color
+                        break
 
-            # Elipszis és ID megjelenítése a játékosok alatt
+            # Detektált objektumok vizsgálata
             for detection in tracked_objects:
                 
                 xyxy = detection[0]
                 class_id = detection[3]
                 track_id = detection[4]
 
-                if class_id != 2:
-                    continue
-
                 bbox = xyxy.tolist()
+                
+                # Játékosok:
+                if class_id == 2:
+                    # Csapatszín meghatározása a TeamAssigner-rel
+                    upper_body_image = self.teamAssigner.get_upper_body_image(frame, bbox)
+                    apperance_feature = self.teamAssigner.get_player_color(upper_body_image)
+                    team_color_num = self.teamAssigner.get_player_to_team(apperance_feature, self.team1_color, 
+                                                                            self.team2_color)
 
-                # Csapatszín meghatározása a TeamAssigner-rel
-                upper_body_image = teamAssigner.get_upper_body_image(frame, bbox, track_id)
-                apperance_feature = teamAssigner.get_player_color(upper_body_image, track_id)
-                team_color_num = teamAssigner.get_player_to_team(apperance_feature, team1_color, team2_color, track_id)
+                    # Elipszis rajzolása a megfelelő színnel
+                    if team_color_num == 1:
+                        annotated_frame = self.draw_ellipse(annotated_frame, bbox, self.team1_color, track_id=track_id)
+                    elif team_color_num == 2:
+                        annotated_frame = self.draw_ellipse(annotated_frame, bbox, self.team2_color, track_id=track_id)
 
-                # Elipszis rajzolása a megfelelő színnel
-                if team_color_num == 1:
-                    annotated_frame = self.draw_ellipse(annotated_frame, bbox, team1_color, track_id=track_id)
-                elif team_color_num == 2:
-                    annotated_frame = self.draw_ellipse(annotated_frame, bbox, team2_color, track_id=track_id)
+                # Játékvezetők:
+                elif class_id == 3:
+                    referee_color = (0, 255, 255)
+                    annotated_frame = self.draw_ellipse(annotated_frame, bbox, referee_color, track_id=None)
+
+                # Labda:
+                elif class_id == 0:
+                    annotated_frame = self.draw_triangle(annotated_frame, bbox)
 
             # Annotált képkocka hozzáadása a listához
             annotated_frames.append(annotated_frame)
