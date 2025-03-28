@@ -8,29 +8,15 @@ class TeamAssigner:
         # A frame adott játékosának felső testét tartalmazó kép kivágása
         x1, y1, x2, y2, = bbox
         x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
-
-        #
-        if x2 <= x1 or y2 <= y1:
-            print(f"Hiba: A(z) {id}. játékos felső testének bounding boxa hibás!")
-            return np.array([])
-
+            
         # Bbox magassága
         bbox_height = y2 - y1
 
         # Bbox felső részének végpontja
         upper_body_y = y1 + int(0.5 * bbox_height)
 
-        #
-        if upper_body_y <= y1:
-            print(f"Hiba: A(z) {id}. játékos felső testének bounding boxa hibás!")
-            return np.array([])
-
         # Felső test
         upper_body_image = frame[y1:upper_body_y, x1:x2]
-
-        #
-        if upper_body_image.size == 0:
-            print(f"Hiba: A(z) {id}. játékos felső testének képe üres!")
 
         # Felső test kép mentése
         # cv2.imwrite(f"test_image\\upper_body{id}.jpg", upper_body_image)
@@ -53,18 +39,8 @@ class TeamAssigner:
         return kmeans
 
     def get_player_color(self, image, id):
-        # Ellenőrzés, hogy a kép üres-e
-        if image is None or image.size == 0 or image.shape[0] == 0 or image.shape[1] == 0:
-            print(f"Hiba: A(z) {id}. játékos felső testének képe üres! Klaszterezés kihagyása.")
-            return np.array([0, 0, 0])
-
         # Klaszterező modell létrehozása a képből
         kmeans = self.get_clustering_model(image)
-
-        #
-        if kmeans is None:
-            single_color = image.reshape(-1, 3)[0]
-            return single_color
 
         # Pixelek klaszterének meghatározása
         labels = kmeans.labels_

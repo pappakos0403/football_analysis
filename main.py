@@ -7,7 +7,7 @@ from ultralytics import YOLO
 model = YOLO("models\\best.pt")
 
 # Videófájl elérési útvonalai
-video_path = "input_videos\\haaland.mp4"
+video_path = "input_videos\\city.mp4"
 output_video_path = "output_videos\\output_video.avi"
 
 # Detektálás a videón
