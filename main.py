@@ -1,14 +1,20 @@
 from utils import load_video, generate_output_video
-from tracker import detect_video
+from tracker import Tracker
 
 from ultralytics import YOLO
-
-# Modell betöltése
-model = YOLO("models\\best.pt")
 
 # Videófájl elérési útvonalai
 video_path = "input_videos\\city.mp4"
 output_video_path = "output_videos\\output_video.avi"
 
+# Modell betöltése
+tracker = Tracker("models\\best.pt")
+
+# Videó betöltése
+frames, fps, width, height = load_video(video_path)
+
 # Detektálás a videón
-detect_video(video_path, output_video_path, model)
+annotated_frames, fps, width, height = tracker.detect_video(frames, fps, width, height)
+
+# Output videó generálása
+generate_output_video(annotated_frames, fps, width, height, output_video_path)

@@ -1,1 +1,1 @@
-from .tracker import detect_video
+from .tracker import Tracker
