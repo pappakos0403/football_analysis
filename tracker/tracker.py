@@ -159,14 +159,24 @@ class Tracker:
                         team2_color = player_color
                         break   
             
-            # Elipszis és ID megjelenítése minden követett játékoson és játékvezetőn
+            # Elipszis a játékvezetők alatt
             for bbox in detected_objects["referees"]:
                 if bbox in detected_objects["referees"]:
-                    # Elipszis rajzolása sárga színnel a játékvezetők számára
                     referee_color = (0, 255, 255)
                     annotated_frame = self.draw_ellipse(annotated_frame, bbox, referee_color, track_id=None)
 
-            for track_id, bbox in enumerate(detected_objects["players"]):
+            # Elipszis és ID megjelenítése a játékosok alatt
+            for detection in tracked_objects:
+                
+                xyxy = detection[0]
+                class_id = detection[3]
+                track_id = detection[4]
+
+                if class_id != 2:
+                    continue
+
+                bbox = xyxy.tolist()
+
                 # Csapatszín meghatározása a TeamAssigner-rel
                 upper_body_image = teamAssigner.get_upper_body_image(frame, bbox, track_id)
                 apperance_feature = teamAssigner.get_player_color(upper_body_image, track_id)
