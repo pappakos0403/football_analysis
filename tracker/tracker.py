@@ -77,10 +77,29 @@ class Tracker:
         cv2.polylines(frame, [triangle_points], isClosed=True, color=(0, 0, 0), thickness=2)
 
         return frame
+    
+    # Labda detektálása minden framen
+    def interpolate_ball(self, positions):
+
+        # Ha a labda nincs detektálva, akkor egy üres szótár lesz
+        ball_positions = [x.get(1,{}).get('bbox',[]) for x in positions]
+
+        # DataFrame létrehozása
+        df_ball_positions = pd.DataFrame(ball_positions, columns=["x1", "y1", "x2", "y2"])
+
+        # Üres értékek interpolációja
+        df_ball_positions = df_ball_positions.interpolate()
+        df_ball_positions = df_ball_positions.bfill()
+
+        # Visszalakítás numpy formába
+        interpolated_ball_positions = [{1: {"bbox":x}} for x in df_ball_positions.to_numpy().tolist()]
+
+        return interpolated_ball_positions
 
     def detect_video(self, frames, fps, width, height):
         
         annotated_frames = []
+        raw_ball_positions = []
 
         # Detektálás az összes képkockán
         for frame_num, frame in enumerate(frames):
@@ -144,6 +163,12 @@ class Tracker:
                     if color_diff > self.threshold:
                         self.team2_color = player_color
                         break
+            
+            # Labda pozíciójának eltárolása
+            if detected_objects["ball"]:
+                raw_ball_positions.append({1: {"bbox": detected_objects["ball"][0]}})
+            else:
+                raw_ball_positions.append({})
 
             # Detektált objektumok vizsgálata
             for detection in tracked_objects:
@@ -173,9 +198,11 @@ class Tracker:
                     referee_color = (0, 255, 255)
                     annotated_frame = self.draw_ellipse(annotated_frame, bbox, referee_color, track_id=None)
 
-                # Labda:
-                elif class_id == 0:
-                    annotated_frame = self.draw_triangle(annotated_frame, bbox)
+            # Labda:
+            interpolated_ball_positions = self.interpolate_ball(raw_ball_positions)
+            if 1 in interpolated_ball_positions[frame_num]:
+                bbox = [int(v) for v in interpolated_ball_positions[frame_num][1]["bbox"]]
+                annotated_frame = self.draw_triangle(annotated_frame, bbox)
 
             # Annotált képkocka hozzáadása a listához
             annotated_frames.append(annotated_frame)
