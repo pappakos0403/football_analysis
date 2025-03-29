@@ -1,6 +1,8 @@
 from ultralytics import YOLO
 from utils.bbox_utils import get_center_of_bbox, get_bbox_width
 from utils.team_assigner_utils import TeamAssigner
+import pickle
+import os
 import cv2
 import numpy as np
 import pandas as pd
@@ -96,7 +98,12 @@ class Tracker:
 
         return interpolated_ball_positions
 
-    def detect_video(self, frames, fps, width, height):
+    def detect_video(self, frames, fps, width, height, read_from_stub=False, stub_path=None):
+
+        if read_from_stub and stub_path and os.path.exists(stub_path):
+            with open(stub_path, "rb") as f:
+                annotated_frames = pickle.load(f)
+            return annotated_frames, fps, width, height
         
         annotated_frames = []
         raw_ball_positions = []
