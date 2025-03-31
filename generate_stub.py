@@ -4,8 +4,8 @@ from utils import load_video
 from tracker import Tracker
 
 # Útvonalak
-video_path = "input_videos/eto.mp4"
-stub_path = "stubs/eto.pkl"
+video_path = "input_videos/08fd33_4.mp4"
+stub_path = "stubs/08fd33_4.pkl"
 model_path = "models/best.pt"
 
 # Stub mappa létrehozása, ha nem létezik

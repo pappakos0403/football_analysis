@@ -158,6 +158,9 @@ class Tracker:
             with open(stub_path,'wb') as f:
                 pickle.dump(tracks,f)
 
+        # Labda pozíciók interpolálása
+        tracks["ball"] = self.interpolate_ball(tracks["ball"])
+
         return tracks
 
 
