@@ -15,9 +15,9 @@ os.makedirs("stubs", exist_ok=True)
 tracker = Tracker(model_path)
 frames, fps, width, height = load_video(video_path)
 
-# Detektált annotált frame-ek generálása
-annotated_frames, fps, width, height = tracker.detect_video(frames, fps, width, height)
+# Detektálás és stub mentés
+tracks = tracker.detect_video(frames, read_from_stub=False, stub_path=None)
 
 # Stub fájl mentése
 with open(stub_path, "wb") as f:
-    pickle.dump(annotated_frames, f)
+    pickle.dump(tracks, f)

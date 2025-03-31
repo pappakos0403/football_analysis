@@ -3,7 +3,7 @@ from tracker import Tracker
 from ultralytics import YOLO
 
 # Videófájl elérési útvonalai
-video_path = "input_videos\\eto.mp4"
+video_path = "input_videos\\08fd33_4.mp4"
 output_video_path = "output_videos\\output_video.avi"
 stub_path = "stubs\\eto.pkl"
 
@@ -14,7 +14,10 @@ tracker = Tracker("models\\best.pt")
 frames, fps, width, height = load_video(video_path)
 
 # Detektálás a videón
-annotated_frames, fps, width, height, = tracker.detect_video(frames, fps, width, height, read_from_stub=True, stub_path=stub_path)
+tracks = tracker.detect_video(frames, read_from_stub=False, stub_path=stub_path)
+
+# Annotálás a videón
+annotated_frames = tracker.annotations(frames, tracks)
 
 # Output videó generálása
-generate_output_video(annotated_frames, fps, width, height, output_video_path)
+generate_output_video(annotated_frames, output_video_path, fps, width, height)

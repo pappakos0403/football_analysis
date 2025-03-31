@@ -19,7 +19,7 @@ def load_video(path):
     return frames, fps, width, height
 
 # Output videó generálása
-def generate_output_video(output_video_frames, video_fps, video_width, video_height, output_video_path):
+def generate_output_video(output_video_frames, output_video_path, video_fps, video_width, video_height):
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out = cv2.VideoWriter(output_video_path, fourcc, video_fps, (video_width, video_height))
     for frame in output_video_frames:

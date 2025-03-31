@@ -98,71 +98,90 @@ class Tracker:
 
         return interpolated_ball_positions
 
-    def detect_video(self, frames, fps, width, height, read_from_stub=False, stub_path=None):
+    def detect_video(self, frames, read_from_stub=False, stub_path=None):
 
         if read_from_stub and stub_path and os.path.exists(stub_path):
             with open(stub_path, "rb") as f:
                 annotated_frames = pickle.load(f)
-            return annotated_frames, fps, width, height
+            return annotated_frames
         
-        annotated_frames = []
-        raw_ball_positions = []
+        detections = []
+
+        for frame_num, frame in enumerate(frames):
+            detection = self.model(frame)[0]
+            detections.append(detection)
+
+        tracks = {
+            "players": [],
+            "referees": [],
+            "ball": []
+        }
 
         # Detektálás az összes képkockán
+        for frame_num, detection in enumerate(detections):
+            cls_names = detection.names
+            cls_names_inv = {value:key for key, value in cls_names.items()}
+
+            # Objektumok követése supervision-nel
+            detection_supervision = sv.Detections.from_ultralytics(detection)
+
+            # Kapus átalakítása játékosra
+            for object_index, class_id in enumerate(detection_supervision.class_id):
+                if cls_names[class_id] == "goalkeeper":
+                    detection_supervision.class_id[object_index] = cls_names_inv["player"]
+
+            tracked_objects = self.tracker.update_with_detections(detection_supervision)
+
+            tracks["players"].append({})
+            tracks["referees"].append({})
+            tracks["ball"].append({})
+
+            for frame_detection in tracked_objects:
+                bbox = frame_detection[0].tolist()
+                cls_id = frame_detection[3]
+                track_id = frame_detection[4]
+
+                if cls_id == cls_names_inv['player']:
+                    tracks["players"][frame_num][track_id] = {"bbox":bbox}
+
+                if cls_id == cls_names_inv['referee']:
+                    tracks["referees"][frame_num][track_id] = {"bbox":bbox}
+
+            for frame_detection in detection_supervision:
+                bbox = frame_detection[0].tolist()
+                cls_id = frame_detection[3]
+
+                if cls_id == cls_names_inv['ball']:
+                    tracks["ball"][frame_num][1] = {"bbox":bbox}
+
+        if stub_path is not None:
+            with open(stub_path,'wb') as f:
+                pickle.dump(tracks,f)
+
+        return tracks
+
+
+    def annotations(self, frames, tracks):
+        
+        annotated_frames = []
+        
         for frame_num, frame in enumerate(frames):
             annotated_frame = frame.copy()
 
-            # Objektumok követése supervision-nel
-            results = self.model(frame)
-            detection_supervision = sv.Detections.from_ultralytics(results[0])
-            tracked_objects = self.tracker.update_with_detections(detection_supervision)
-
-            # Az eredményekből a bounding boxok kinyerése
-            boxes = results[0].boxes
-
-            # Kapus átállítása játékosra
-            # boxes.data tensor oszlopainál a cls átállítása 2-ről 1-re (kapus -> játékos)
-            boxes_data = boxes.data.clone()
-            boxes_data.data[boxes.data[:, 5] == 1, 5] = 2
-            boxes.data = boxes_data
-
-            # boxes.data numpy tömbbé alakítása
-            boxes_np = boxes.data.cpu().numpy() if hasattr(boxes.data, "cpu") else boxes.data
-
-            # Külön kezeljük a játékosokat, a játékvezetőket és a labdát
-            detected_objects = {
-                "players": [], # cls: 2
-                "referees": [], # cls: 3
-                "ball": [] # cls: 0
-            }
-
-            # Bounding boxok feldolgozása
-            for box in boxes_np:
-                x1, y1, x2, y2, conf, cls = box
-                cls = int(cls)
-
-                # Játékosok
-                if cls == 2 and conf > 0.75:
-                    detected_objects["players"].append([x1, y1, x2, y2])
-
-                # Játékvezetők
-                elif cls == 3:
-                    detected_objects["referees"].append([x1, y1, x2, y2])
-
-                # Labda
-                elif cls == 0:
-                    detected_objects["ball"].append([x1, y1, x2, y2])
+            player_dict = tracks["players"][frame_num]
+            referee_dict = tracks["referees"][frame_num]
+            ball_dict = tracks["ball"][frame_num]
 
             if frame_num == 0:
-                for player in detected_objects["players"]:
+                for _, player in player_dict.items():
                     # Első csapat színének meghatározása
                     if self.team1_color is None:
-                        upper_body_image = self.teamAssigner.get_upper_body_image(frame, player)
+                        upper_body_image = self.teamAssigner.get_upper_body_image(frame, player["bbox"])
                         self.team1_color = self.teamAssigner.get_player_color(upper_body_image)
                         continue
 
                     # Második csapat színének meghatározása
-                    upper_body_image = self.teamAssigner.get_upper_body_image(frame, player)
+                    upper_body_image = self.teamAssigner.get_upper_body_image(frame, player["bbox"])
                     player_color = self.teamAssigner.get_player_color(upper_body_image)
 
                     # Színkülönbség kiszámítása Euklideszi távolsággal
@@ -171,47 +190,32 @@ class Tracker:
                         self.team2_color = player_color
                         break
             
-            # Labda pozíciójának eltárolása
-            if detected_objects["ball"]:
-                raw_ball_positions.append({1: {"bbox": detected_objects["ball"][0]}})
-            else:
-                raw_ball_positions.append({})
-
-            # Detektált objektumok vizsgálata
-            for detection in tracked_objects:
-                
-                xyxy = detection[0]
-                class_id = detection[3]
-                track_id = detection[4]
-
-                bbox = xyxy.tolist()
-                
-                # Játékosok:
-                if class_id == 2:
-                    # Csapatszín meghatározása a TeamAssigner-rel
-                    upper_body_image = self.teamAssigner.get_upper_body_image(frame, bbox)
-                    apperance_feature = self.teamAssigner.get_player_color(upper_body_image)
-                    team_color_num = self.teamAssigner.get_player_to_team(apperance_feature, self.team1_color, 
+            # Játékosok:
+            for track_id, player in player_dict.items():
+                # Csapatszín meghatározása a TeamAssigner-rel
+                upper_body_image = self.teamAssigner.get_upper_body_image(frame, player["bbox"])
+                apperance_feature = self.teamAssigner.get_player_color(upper_body_image)
+                team_color_num = self.teamAssigner.get_player_to_team(apperance_feature, self.team1_color, 
                                                                             self.team2_color)
 
-                    # Elipszis rajzolása a megfelelő színnel
-                    if team_color_num == 1:
-                        annotated_frame = self.draw_ellipse(annotated_frame, bbox, self.team1_color, track_id=track_id)
-                    elif team_color_num == 2:
-                        annotated_frame = self.draw_ellipse(annotated_frame, bbox, self.team2_color, track_id=track_id)
+                # Elipszis rajzolása a megfelelő színnel
+                if team_color_num == 1:
+                    annotated_frame = self.draw_ellipse(annotated_frame, player["bbox"], self.team1_color, track_id=track_id)
+                elif team_color_num == 2:
+                    annotated_frame = self.draw_ellipse(annotated_frame, player["bbox"], self.team2_color, track_id=track_id)
 
-                # Játékvezetők:
-                elif class_id == 3:
-                    referee_color = (0, 255, 255)
-                    annotated_frame = self.draw_ellipse(annotated_frame, bbox, referee_color, track_id=None)
+            # Játékvezetők:
+            for track_id, referee in referee_dict.items():
+                # Sárga elipszis a játékvezető alá
+                referee_color = (0, 255, 255)
+                annotated_frame = self.draw_ellipse(annotated_frame, referee["bbox"], referee_color, track_id=None)
 
-            # Labda:
-            interpolated_ball_positions = self.interpolate_ball(raw_ball_positions)
-            if 1 in interpolated_ball_positions[frame_num]:
-                bbox = [int(v) for v in interpolated_ball_positions[frame_num][1]["bbox"]]
+            # Labda kirajzolása, ha van
+            if 1 in ball_dict:
+                bbox = [int(v) for v in ball_dict[1]["bbox"]]
                 annotated_frame = self.draw_triangle(annotated_frame, bbox)
 
             # Annotált képkocka hozzáadása a listához
             annotated_frames.append(annotated_frame)
         
-        return annotated_frames, fps, width, height
+        return annotated_frames
