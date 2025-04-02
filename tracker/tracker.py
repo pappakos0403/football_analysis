@@ -1,6 +1,7 @@
 from ultralytics import YOLO
 from utils.bbox_utils import get_center_of_bbox, get_bbox_width
 from utils.team_assigner_utils import TeamAssigner
+from ball_possession import BallPossession
 import pickle
 import os
 import cv2
@@ -61,19 +62,23 @@ class Tracker:
         
         return frame
 
-    def draw_triangle(self, frame, bbox):
+    def draw_triangle(self, frame, bbox, color):
         # Felső koordináta a bbox alapján
         x1, y1, x2, y2 = map(int, bbox)
 
+        # Háromszög mérete
+        center_x = (x1 + x2) // 2
+        triangle_width = 30
+
         # Háromszög csúcsainak meghatározása
         triangle_points = np.array([
-            [(x1 + x2) // 2, y1 - 15],  # Csúcs a labda felett
-            [x1, y1 - 30],         # Bal Felső sarok
-            [x2, y1 - 30]          # Jobb Felső sarok
+            [center_x, y1 - 15],  # Csúcs
+            [center_x - (triangle_width // 2), y1 - 30],         # Bal Felső sarok
+            [center_x + (triangle_width // 2), y1 - 30]          # Jobb Felső sarok
         ], np.int32)
 
         # Háromszög kitöltése
-        cv2.fillPoly(frame, [triangle_points], (0, 255, 0))
+        cv2.fillPoly(frame, [triangle_points], color)
 
         # Háromszög kontúrjának rajzolása
         cv2.polylines(frame, [triangle_points], isClosed=True, color=(0, 0, 0), thickness=2)
@@ -215,8 +220,19 @@ class Tracker:
 
             # Labda kirajzolása, ha van
             if 1 in ball_dict:
-                bbox = [int(v) for v in ball_dict[1]["bbox"]]
-                annotated_frame = self.draw_triangle(annotated_frame, bbox)
+                possession = BallPossession()
+                ball_bbox = [int(v) for v in ball_dict[1]["bbox"]]
+                # Labda fölé zöld háromszög rajzolása
+                annotated_frame = self.draw_triangle(annotated_frame, ball_bbox, (0, 255, 0))
+
+                # Legközelebbi játékos meghatározása a labdához
+                closest_player_id = possession.player_on_the_ball(player_dict, ball_bbox)
+
+                if closest_player_id is not None:
+                    # Legközelebbi játékos bbox-ja
+                    closest_player_bbox = player_dict[closest_player_id]["bbox"]
+                    # Piros háromszög rajzolása a labdát birtokló játékos fölé
+                    annotated_frame = self.draw_triangle(annotated_frame, closest_player_bbox, (0, 0, 255))
 
             # Annotált képkocka hozzáadása a listához
             annotated_frames.append(annotated_frame)
