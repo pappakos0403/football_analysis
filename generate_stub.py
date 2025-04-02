@@ -2,6 +2,7 @@ import os
 import pickle
 from utils import load_video
 from tracker import Tracker
+from camera_movement import CameraMovement
 
 # Útvonalak
 video_path = "input_videos/08fd33_4.mp4"
@@ -17,6 +18,10 @@ frames, fps, width, height = load_video(video_path)
 
 # Detektálás és stub mentés
 tracks = tracker.detect_video(frames, read_from_stub=False, stub_path=None)
+
+# Kameramozgás számítás
+camera_estimator = CameraMovement(frames[0])
+camera_movements = camera_estimator.calculate_movement(frames, read_from_stub=False, stub_path=None)
 
 # Stub fájl mentése
 with open(stub_path, "wb") as f:

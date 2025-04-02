@@ -2,6 +2,7 @@ from ultralytics import YOLO
 from utils.bbox_utils import get_center_of_bbox, get_bbox_width
 from utils.team_assigner_utils import TeamAssigner
 from ball_possession import BallPossession
+from camera_movement import CameraMovement
 import pickle
 import os
 import cv2
@@ -165,6 +166,11 @@ class Tracker:
 
         # Labda pozíciók interpolálása
         tracks["ball"] = self.interpolate_ball(tracks["ball"])
+
+        # Kameramozgás becslése és pozíció korrekció
+        camera_estimator = CameraMovement(frames[0])
+        camera_movements = camera_estimator.calculate_movement(frames, read_from_stub, stub_path)
+        camera_estimator.adjust_tracks(tracks, camera_movements)
 
         return tracks
 
