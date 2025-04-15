@@ -106,5 +106,5 @@ def process_keypoint_annotations(players_tracks=None):
     
     return {
         "keypoints": all_keypoints,
-        "pitch_coordinates": all_pitch_coords
+        "player_coordinates": all_pitch_coords
     }

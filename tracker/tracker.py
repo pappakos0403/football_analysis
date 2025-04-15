@@ -3,6 +3,7 @@ from utils.bbox_utils import get_center_of_bbox, get_bbox_width
 from utils.team_assigner_utils import TeamAssigner
 from ball_possession import BallPossession
 from camera_movement import CameraMovement
+from pitch_config import FootballPitchConfiguration
 import pickle
 import os
 import cv2
@@ -243,4 +244,44 @@ class Tracker:
             # Annotált képkocka hozzáadása a listához
             annotated_frames.append(annotated_frame)
         
+        return annotated_frames
+    
+    def final_annotations(self, frames, tracks, keypoints_list, pitch_coordinates_list):
+        # Először elkészítjük az alapannotációt
+        annotated_frames = self.annotations(frames, tracks)
+
+        # Pálya konfiguráció példányosítása a pontok és összekötő vonalak kirajzolásához
+        pitch_config = FootballPitchConfiguration()
+
+        for i, frame in enumerate(annotated_frames):
+            # Kulcspontok és vonalak rajzolása, ha létezik keypoint adat az adott frame-hez
+            if i < len(keypoints_list):
+                pts = keypoints_list[i]
+                if pts is not None and pts.size > 0:
+                    # Minden kulcspont kirajzolása kis körrel
+                    for pt in pts:
+                        cv2.circle(frame, (int(pt[0]), int(pt[1])), radius=4, color=(255, 0, 0), thickness=-1)
+                    # A FootballPitchConfiguration osztályban definiált élek alapján összekötjük a pontokat.
+                    for edge in pitch_config.edges:
+                        idx1 = edge[0] - 1  # Az élek 1-indexeltek, ezért kivonunk egyet
+                        idx2 = edge[1] - 1
+                        if idx1 < len(pts) and idx2 < len(pts):
+                            pt1 = (int(pts[idx1][0]), int(pts[idx1][1]))
+                            pt2 = (int(pts[idx2][0]), int(pts[idx2][1]))
+                            cv2.line(frame, pt1, pt2, color=(255, 255, 0), thickness=2)
+
+            # A játékosok pályakoordinátáinak kiírása a frame alján, a bbox alsó részéhez igazítva.
+            if i < len(pitch_coordinates_list):
+                coords_dict = pitch_coordinates_list[i]  # Dict: track_id → (x, y) (méterben)
+                player_tracks = tracks["players"][i]
+                for track_id, player in player_tracks.items():
+                    if track_id in coords_dict:
+                        coord = coords_dict[track_id]
+                        text = f"x: {coord[0]:.1f}m y: {coord[1]:.1f}m"
+                        x1, y1, x2, y2 = player["bbox"]
+                        x_center = int((x1 + x2) / 2)
+                        y_bottom = int(y2)
+                        text_position = (x_center -70, y_bottom + 20)
+                        cv2.putText(frame, text, text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
+
         return annotated_frames

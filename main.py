@@ -27,7 +27,7 @@ frames, fps, width, height = load_video(video_path)
 # Inicializálás
 tracks = None
 camera_movements = None
-generate_stub = True
+keypoint_data = None
 
 # Stub fájl ellenőrzése
 if os.path.exists(stub_path):
@@ -37,11 +37,18 @@ if os.path.exists(stub_path):
             stub_data = pickle.load(f)
 
         # Szerkezet
-        if (isinstance(stub_data, dict) and "tracks" in stub_data and "camera_movements" and "keypoints" 
-            and "player_coordinates" in stub_data):
+        if (isinstance(stub_data, dict) and 
+            "tracks" in stub_data and 
+            "camera_movements" in stub_data and 
+            "keypoints" in stub_data and
+            "player_coordinates" in stub_data):
 
             tracks = stub_data["tracks"]
             camera_movements = stub_data["camera_movements"]
+            keypoint_data = {
+                "keypoints": stub_data["keypoints"],
+                "player_coordinates": stub_data["player_coordinates"]
+            }
             print("Stub fájl betöltve!")
         else:
             print("Hibás .pkl, töröld!")
@@ -69,7 +76,7 @@ else:
         "tracks": tracks,
         "camera_movements": camera_movements,
         "keypoints": keypoint_data.get("keypoints", []),
-        "players_coords": keypoint_data.get("player_coordinates", [])
+        "player_coordinates": keypoint_data.get("player_coordinates", [])
     }
     os.makedirs(os.path.dirname(stub_path), exist_ok=True)
     with open(stub_path, "wb") as f:
@@ -84,7 +91,13 @@ camera_estimator.adjust_tracks(tracks, camera_movements)
 camera_estimator.adjust_tracks(tracks, camera_movements)
 
 # Annotálás a videón
-annotated_frames = tracker.annotations(frames, tracks)
+annotated_frames = tracker.final_annotations(
+    frames, 
+    tracks,
+    keypoint_data.get("keypoints", []),
+    keypoint_data.get("player_coordinates", [])
+)
+print("Annotálás befejeződött!")
 
 # === Kameramozgás szöveges megjelenítése az annotált videón ===
 for i, frame in enumerate(annotated_frames):
