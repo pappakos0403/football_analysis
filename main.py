@@ -1,6 +1,7 @@
 from utils import load_video, generate_output_video
 from tracker import Tracker
 from camera_movement import CameraMovement
+from pitch_config import process_keypoint_annotations
 from ultralytics import YOLO
 import cv2
 import os
@@ -11,8 +12,11 @@ video_path = "input_videos\\08fd33_4.mp4"
 output_video_path = "output_videos\\output_video.avi"
 stub_path = "stubs\\08fd33_4.pkl"
 
-# Modell elérési útvonala
+# Objektumdetektáló modell elérési útvonala
 model_path = "models\\best.pt"
+
+# Keypoint detektáló modell elérési útvonala
+keypoint_model_path = "models\\best_keypoints.pt"
 
 # Modell betöltése
 tracker = Tracker(model_path)
@@ -33,7 +37,9 @@ if os.path.exists(stub_path):
             stub_data = pickle.load(f)
 
         # Szerkezet
-        if isinstance(stub_data, dict) and "tracks" in stub_data and "camera_movements" in stub_data:
+        if (isinstance(stub_data, dict) and "tracks" in stub_data and "camera_movements" and "keypoints" 
+            and "player_coordinates" in stub_data):
+
             tracks = stub_data["tracks"]
             camera_movements = stub_data["camera_movements"]
             print("Stub fájl betöltve!")
@@ -45,19 +51,30 @@ if os.path.exists(stub_path):
 else:
     print("Stub fájl nem található, új generálás indul...")
 
-    # Detektálás és kameramozgás újraszámítása (nem stub-ból)
+    # Objektumdetektálás
     tracks = tracker.detect_video(frames, read_from_stub=False, stub_path=None)
+    print("Játékosok, játékvezetők és labda detektálva!")
+
+    # Kameramozgás számítása
     camera_estimator = CameraMovement(frames[0])
     camera_movements = camera_estimator.calculate_movement(frames, read_from_stub=False, stub_path=None)
+    print("Kameramozgás változása kiszámítva!")
+
+    # Kulcspontok és játékoskoordináták számítása
+    keypoint_data = process_keypoint_annotations(players_tracks=tracks["players"])
+    print("Kulcspontok detektálva és játékoskoordináták kiszámítva!")
 
     # Mentés stub fájlba
     stub_data = {
         "tracks": tracks,
-        "camera_movements": camera_movements
+        "camera_movements": camera_movements,
+        "keypoints": keypoint_data.get("keypoints", []),
+        "players_coords": keypoint_data.get("player_coordinates", [])
     }
     os.makedirs(os.path.dirname(stub_path), exist_ok=True)
     with open(stub_path, "wb") as f:
         pickle.dump(stub_data, f)
+    print("Stub fájl mentve:", stub_path)
 
 # Kameramozgás becslése
 camera_estimator = CameraMovement(frames[0])
