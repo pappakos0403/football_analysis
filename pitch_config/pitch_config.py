@@ -3,10 +3,10 @@ from typing import List, Tuple
 
 @dataclass
 class FootballPitchConfiguration: # Pálya konfiguráció [cm]
-    width: int = 7000  # Pálya szélessége
-    length: int = 12000  # Pálya hossza
-    penalty_box_width: int = 4100  # Büntetőterület szélessége
-    penalty_box_length: int = 2015  # Büntetőterület hossza
+    width: int = 6800  # Pálya szélessége
+    length: int = 10500  # Pálya hossza
+    penalty_box_width: int = 4032  # Büntetőterület szélessége
+    penalty_box_length: int = 1650  # Büntetőterület hossza
     goal_box_width: int = 1832  # Tizenhatos terület szélessége
     goal_box_length: int = 550  # Tizenhatos terület hossza
     centre_circle_radius: int = 915  # Középkör sugara
