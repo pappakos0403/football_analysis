@@ -119,7 +119,7 @@ class CameraMovement:
                     # Új kulcs hozzáadása a track-hez
                     track_info["position_adjusted"] = (x_adj, y_adj)
 
-        # Kameramozgás vizualizálása: szöveg kiírása a képkockákra
+    # Kameramozgás vizualizálása: szöveg kiírása a képkockákra
     def draw_movement(self, frames, camera_movement_per_frame):
         # Lista az annotált képkockákhoz
         output_frames = []

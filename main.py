@@ -3,7 +3,6 @@ from tracker import Tracker
 from camera_movement import CameraMovement
 from pitch_config import process_keypoint_annotations
 from ultralytics import YOLO
-import cv2
 import os
 import pickle
 
@@ -83,37 +82,15 @@ else:
         pickle.dump(stub_data, f)
     print("Stub fájl mentve:", stub_path)
 
-# Kameramozgás becslése
-camera_estimator = CameraMovement(frames[0])
-camera_estimator.adjust_tracks(tracks, camera_movements)
-
-# Pozíció korrekció
-camera_estimator.adjust_tracks(tracks, camera_movements)
-
 # Annotálás a videón
-annotated_frames = tracker.final_annotations(
-    frames, 
+annotated_frames = tracker.annotations(
+    frames,
     tracks,
-    keypoint_data.get("keypoints", []),
-    keypoint_data.get("player_coordinates", [])
+    camera_movements=camera_movements,
+    keypoints_list=keypoint_data.get("keypoints", []),
+    pitch_coordinates_list=keypoint_data.get("player_coordinates", [])
 )
 print("Annotálás befejeződött!")
-
-# === Kameramozgás szöveges megjelenítése az annotált videón ===
-for i, frame in enumerate(annotated_frames):
-    dx, dy = camera_movements[i]
-    text1 = f"Kamera elmozdulasa X: {dx:.2f}"
-    text2 = f"Kamera elmozdulasa Y: {dy:.2f}"
-
-    # Átlátszó overlay hozzáadása
-    overlay = frame.copy()
-    cv2.rectangle(overlay, (0, 0), (500, 100), (255, 255, 255), -1)
-    alpha = 0.6
-    cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
-
-    # Szöveg kiírása
-    cv2.putText(frame, text1, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3)
-    cv2.putText(frame, text2, (10, 65), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3)
 
 # Output videó generálása
 generate_output_video(annotated_frames, output_video_path, fps, width, height)

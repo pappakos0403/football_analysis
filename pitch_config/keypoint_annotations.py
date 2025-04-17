@@ -1,5 +1,3 @@
-# keypoint_annotations.py
-
 import cv2
 import numpy as np
 from ultralytics import YOLO
@@ -7,15 +5,6 @@ from pitch_config import FootballPitchConfiguration
 from .view_transformer import ViewTransformer
 
 def process_keypoint_annotations(players_tracks=None):
-    """
-    Ez a függvény beolvassa az input videót, detektálja az összes képkockán a kulcspontokat,
-    és – ha a players_tracks paraméterként meg van adva – kiszámolja a játékosok pályakoordinátáit (méterben).
-
-    Visszatér egy dicttel, melyben:
-        "keypoints"         : lista, minden képkockához tartozó detektált kulcspontok (numpy tömbök)
-        "pitch_coordinates" : lista, minden képkockára egy (track_id → (x, y) koordináta) dict, 
-                               ahol az értékek méterben vannak. Ha players_tracks nincs megadva, az érték üres dict lesz.
-    """
     
     # Beállított útvonalak és paraméterek
     INPUT_VIDEO_PATH = "input_videos/08fd33_4.mp4"
@@ -81,7 +70,7 @@ def process_keypoint_annotations(players_tracks=None):
             print(f"Frame {frame_count}: Nem érhető el keypoint adat!")
             frame_keypoints = np.empty((0, 2))
         
-        # Ha homográfia érvényes és players_tracks paraméterként meg van adva, számoljuk ki a pályakoordinátákat.
+        # Pályakoordináták kiszámítása
         if homography_valid and players_tracks is not None and frame_count < len(players_tracks):
             inverse_transformer = ViewTransformer(source=image_points, target=pitch_points)
             for track_id, player in players_tracks[frame_count].items():

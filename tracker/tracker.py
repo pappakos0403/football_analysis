@@ -176,10 +176,10 @@ class Tracker:
         return tracks
 
 
-    def annotations(self, frames, tracks):
-        
+    def annotations(self, frames, tracks, camera_movements=None, keypoints_list=None, pitch_coordinates_list=None):
+
         annotated_frames = []
-        
+
         for frame_num, frame in enumerate(frames):
             annotated_frame = frame.copy()
 
@@ -187,6 +187,7 @@ class Tracker:
             referee_dict = tracks["referees"][frame_num]
             ball_dict = tracks["ball"][frame_num]
 
+            # Csapatszín beállítása az első frame-en
             if frame_num == 0:
                 for _, player in player_dict.items():
                     # Első csapat színének meghatározása
@@ -194,26 +195,24 @@ class Tracker:
                         upper_body_image = self.teamAssigner.get_upper_body_image(frame, player["bbox"])
                         self.team1_color = self.teamAssigner.get_player_color(upper_body_image)
                         continue
-
+                    
                     # Második csapat színének meghatározása
                     upper_body_image = self.teamAssigner.get_upper_body_image(frame, player["bbox"])
                     player_color = self.teamAssigner.get_player_color(upper_body_image)
 
-                    # Színkülönbség kiszámítása Euklideszi távolsággal
+                    # Színkülönbség számítása
                     color_diff = np.linalg.norm(np.array(self.team1_color) - np.array(player_color))
                     if color_diff > self.threshold:
                         self.team2_color = player_color
                         break
-            
+
             # Játékosok:
             for track_id, player in player_dict.items():
-                # Csapatszín meghatározása a TeamAssigner-rel
+                # Játékos színének meghatározása
                 upper_body_image = self.teamAssigner.get_upper_body_image(frame, player["bbox"])
                 apperance_feature = self.teamAssigner.get_player_color(upper_body_image)
-                team_color_num = self.teamAssigner.get_player_to_team(apperance_feature, self.team1_color, 
-                                                                            self.team2_color)
-
-                # Elipszis rajzolása a megfelelő színnel
+                team_color_num = self.teamAssigner.get_player_to_team(apperance_feature, self.team1_color, self.team2_color)
+                # Elipszis rajzolása a játékosok alá
                 if team_color_num == 1:
                     annotated_frame = self.draw_ellipse(annotated_frame, player["bbox"], self.team1_color, track_id=track_id)
                 elif team_color_num == 2:
@@ -221,11 +220,11 @@ class Tracker:
 
             # Játékvezetők:
             for track_id, referee in referee_dict.items():
-                # Sárga elipszis a játékvezető alá
+                # Sárga elipszis rajzolása a játékvezető alá
                 referee_color = (0, 255, 255)
-                annotated_frame = self.draw_ellipse(annotated_frame, referee["bbox"], referee_color, track_id=None)
+                annotated_frame = self.draw_ellipse(annotated_frame, referee["bbox"], referee_color)
 
-            # Labda kirajzolása, ha van
+            # Labda:
             if 1 in ball_dict:
                 possession = BallPossession()
                 ball_bbox = [int(v) for v in ball_dict[1]["bbox"]]
@@ -236,52 +235,52 @@ class Tracker:
                 closest_player_id = possession.player_on_the_ball(player_dict, ball_bbox)
 
                 if closest_player_id is not None:
-                    # Legközelebbi játékos bbox-ja
                     closest_player_bbox = player_dict[closest_player_id]["bbox"]
-                    # Piros háromszög rajzolása a labdát birtokló játékos fölé
+                    # Piros háromszög rajzolása a labdához legközelebbi játékos fölé
                     annotated_frame = self.draw_triangle(annotated_frame, closest_player_bbox, (0, 0, 255))
 
-            # Annotált képkocka hozzáadása a listához
-            annotated_frames.append(annotated_frame)
-        
-        return annotated_frames
-    
-    def final_annotations(self, frames, tracks, keypoints_list, pitch_coordinates_list):
-        # Először elkészítjük az alapannotációt
-        annotated_frames = self.annotations(frames, tracks)
-
-        # Pálya konfiguráció példányosítása a pontok és összekötő vonalak kirajzolásához
-        pitch_config = FootballPitchConfiguration()
-
-        for i, frame in enumerate(annotated_frames):
-            # Kulcspontok és vonalak rajzolása, ha létezik keypoint adat az adott frame-hez
-            if i < len(keypoints_list):
-                pts = keypoints_list[i]
+            # Kulcspontok és vonalak kirajzolása, ha van keypoint adat
+            if keypoints_list and frame_num < len(keypoints_list):
+                pts = keypoints_list[frame_num]
                 if pts is not None and pts.size > 0:
-                    # Minden kulcspont kirajzolása kis körrel
+                    # Kulcspontok kirajzolása
                     for pt in pts:
-                        cv2.circle(frame, (int(pt[0]), int(pt[1])), radius=4, color=(255, 0, 0), thickness=-1)
-                    # A FootballPitchConfiguration osztályban definiált élek alapján összekötjük a pontokat.
-                    for edge in pitch_config.edges:
-                        idx1 = edge[0] - 1  # Az élek 1-indexeltek, ezért kivonunk egyet
-                        idx2 = edge[1] - 1
+                        cv2.circle(annotated_frame, (int(pt[0]), int(pt[1])), radius=4, color=(255, 0, 0), thickness=-1)
+                    # Kulcspontok összekötése -> pályavonalak rajzolása
+                    for edge in FootballPitchConfiguration().edges:
+                        idx1, idx2 = edge[0]-1, edge[1]-1
                         if idx1 < len(pts) and idx2 < len(pts):
                             pt1 = (int(pts[idx1][0]), int(pts[idx1][1]))
                             pt2 = (int(pts[idx2][0]), int(pts[idx2][1]))
-                            cv2.line(frame, pt1, pt2, color=(255, 255, 0), thickness=2)
+                            cv2.line(annotated_frame, pt1, pt2, color=(255, 255, 0), thickness=2)
 
-            # A játékosok pályakoordinátáinak kiírása a frame alján, a bbox alsó részéhez igazítva.
-            if i < len(pitch_coordinates_list):
-                coords_dict = pitch_coordinates_list[i]  # Dict: track_id → (x, y) (méterben)
-                player_tracks = tracks["players"][i]
-                for track_id, player in player_tracks.items():
-                    if track_id in coords_dict:
-                        coord = coords_dict[track_id]
-                        text = f"x: {coord[0]:.1f}m y: {coord[1]:.1f}m"
-                        x1, y1, x2, y2 = player["bbox"]
-                        x_center = int((x1 + x2) / 2)
+            # Játékosok pályakoordinátáinak kiírása
+            if pitch_coordinates_list and frame_num < len(pitch_coordinates_list):
+                coords = pitch_coordinates_list[frame_num]
+                for track_id, player in tracks["players"][frame_num].items():
+                    if track_id in coords:
+                        x1,y1,x2,y2 = player["bbox"]
+                        x_center = int((x1+x2)/2)
                         y_bottom = int(y2)
-                        text_position = (x_center -70, y_bottom + 20)
-                        cv2.putText(frame, text, text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
+                        text = f"x: {coords[track_id][0]:.1f}m y: {coords[track_id][1]:.1f}m"
+                        cv2.putText(annotated_frame, text, (x_center-70, y_bottom+20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 2)
+
+            # Kameramozgás szöveges megjelenítése
+            if camera_movements is not None and frame_num < len(camera_movements):
+                dx, dy = camera_movements[frame_num]
+                overlay = annotated_frame.copy()
+                cv2.rectangle(overlay, (0, 0), (500, 100), (255, 255, 255), -1)
+                alpha = 0.6
+                cv2.addWeighted(overlay, alpha, annotated_frame, 1 - alpha, 0, annotated_frame)
+                cv2.putText(
+                    annotated_frame, f"Camera Movement X: {dx:.2f}", (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3
+                )
+                cv2.putText(
+                    annotated_frame, f"Camera Movement Y: {dy:.2f}", (10, 65),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3
+                )
+
+            annotated_frames.append(annotated_frame)
 
         return annotated_frames
