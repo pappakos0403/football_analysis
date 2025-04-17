@@ -3,6 +3,7 @@ from tracker import Tracker
 from camera_movement import CameraMovement
 from pitch_config import process_keypoint_annotations
 from ultralytics import YOLO
+from heatmaps import generate_player_heatmaps
 import os
 import pickle
 
@@ -91,6 +92,10 @@ annotated_frames = tracker.annotations(
     pitch_coordinates_list=keypoint_data.get("player_coordinates", [])
 )
 print("Annotálás befejeződött!")
+
+# Hőtérképek generálása
+generate_player_heatmaps(keypoint_data.get("player_coordinates", []))
+print("Hőtérképek elmentve a heatmaps mappába!")
 
 # Output videó generálása
 generate_output_video(annotated_frames, output_video_path, fps, width, height)
