@@ -1,9 +1,10 @@
-from utils import load_video, generate_output_video
+from utils import load_video, generate_output_video, get_majority_team_sides
 from tracker import Tracker
 from camera_movement import CameraMovement
 from pitch_config import process_keypoint_annotations
 from ultralytics import YOLO
 from heatmaps import generate_player_heatmaps
+from ball_possession import BallPossession
 import os
 import pickle
 
@@ -39,11 +40,13 @@ if os.path.exists(stub_path):
         # Szerkezet
         if (isinstance(stub_data, dict) and 
             "tracks" in stub_data and 
+            "goalkeeper_ids" in stub_data and
             "camera_movements" in stub_data and 
             "keypoints" in stub_data and
             "player_coordinates" in stub_data):
 
             tracks = stub_data["tracks"]
+            tracker.goalkeeper_ids = stub_data.get("goalkeeper_ids", set())
             camera_movements = stub_data["camera_movements"]
             keypoint_data = {
                 "keypoints": stub_data["keypoints"],
@@ -74,6 +77,7 @@ else:
     # Mentés stub fájlba
     stub_data = {
         "tracks": tracks,
+        "goalkeeper_ids": tracker.goalkeeper_ids,
         "camera_movements": camera_movements,
         "keypoints": keypoint_data.get("keypoints", []),
         "player_coordinates": keypoint_data.get("player_coordinates", [])
@@ -93,6 +97,38 @@ annotated_frames = tracker.annotations(
 )
 print("Annotálás befejeződött!")
 
+# Csapatok térfél-hozzárendelésének meghatározása
+field_sides = get_majority_team_sides(
+    player_coordinates=keypoint_data["player_coordinates"],
+    players_tracks=tracks["players"],
+    first_frame=frames[0],
+    team1_color=tracker.team1_color,
+    team2_color=tracker.team2_color,
+    team_assigner=tracker.teamAssigner
+)
+
+# Kapusok annotálása a videón
+annotated_frames = tracker.goalkeeper_annotations(
+    annotated_frames,
+    tracks,
+    frames,
+    keypoint_data.get("player_coordinates", []),
+    field_sides
+)
+
+# Labdabirtoklás számítása és megjelenítése
+possession = BallPossession()
+annotated_frames = possession.measure_and_draw_possession(
+    annotated_frames,
+    tracks,
+    tracker.teamAssigner,
+    tracker.team1_color,
+    tracker.team2_color,
+    tracker.goalkeeper_ids,
+    keypoint_data.get("player_coordinates", []),
+    field_sides
+)
+
 # Hőtérképek generálása
 generate_player_heatmaps(keypoint_data.get("player_coordinates", []))
 print("Hőtérképek elmentve a heatmaps mappába!")
@@ -100,3 +136,5 @@ print("Hőtérképek elmentve a heatmaps mappába!")
 # Output videó generálása
 generate_output_video(annotated_frames, output_video_path, fps, width, height)
 print("Kimeneti videó mentve:", output_video_path)
+
+print("Kapus ID-k:", tracker.goalkeeper_ids)

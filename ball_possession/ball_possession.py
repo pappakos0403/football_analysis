@@ -1,10 +1,16 @@
 import numpy as np
-from utils import get_center_of_bbox
+from utils import get_center_of_bbox, TeamAssigner
+import cv2
 
 class BallPossession:
     def __init__(self, distance_threshold = 60):
         # Maximum távolság a labdától
         self.distance_threshold = distance_threshold
+
+        # Labdabirtoklás számlálók inicializálása
+        self.team1_possession = 0
+        self.team2_possession = 0
+        self.total_possession_frames = 0
     
     def player_on_the_ball(self, players, ball_bbox):
         # Labda középpontjának meghatározása
@@ -35,3 +41,63 @@ class BallPossession:
             return closest_player_id
         
         return None
+    
+    # Labdabirtoklás számítása és megjelenítése
+    def measure_and_draw_possession(self, frames, tracks, team_assigner, team1_color, team2_color, 
+                                    goalkeeper_ids, pitch_coordinates_list, field_sides):
+        for frame_num, frame in enumerate(frames):
+            player_dict = tracks["players"][frame_num]
+            ball_dict = tracks["ball"][frame_num]
+            annotated_frame = frame
+
+            # Legközelebbi játékos meghatározása a labdához
+            if 1 in ball_dict:
+                ball_bbox = [int(v) for v in ball_dict[1]["bbox"]]
+                closest_player_id = self.player_on_the_ball(player_dict, ball_bbox)
+
+                # Ha a legközelebbi játékos a labdán belül van, akkor csapatot rendelünk hozzá
+                if closest_player_id and closest_player_id in player_dict:
+
+                    # Kapusok kezelése
+                    if closest_player_id in goalkeeper_ids:
+                        coords = pitch_coordinates_list[frame_num]
+                        if closest_player_id in coords:
+                            x_coord = coords[closest_player_id][0]
+                            if field_sides[1] == "left":
+                                team_number = 1 if x_coord < 52.5 else 2
+                            else:
+                                team_number = 1 if x_coord > 52.5 else 2
+                    # Mezőnyjátékosok kezelése
+                    else:
+                        bbox = player_dict[closest_player_id]["bbox"]
+                        upper_body = team_assigner.get_upper_body_image(frame, bbox)
+                        color = team_assigner.get_player_color(upper_body)
+                        team_number = team_assigner.get_player_to_team(color, team1_color, team2_color)
+
+                    # Számlálók frissítése
+                    if team_number == 1:
+                        self.team1_possession += 1
+                    elif team_number == 2:
+                        self.team2_possession += 1
+
+                    self.total_possession_frames += 1
+
+            # Labdabirtoklás megjelnítése minden frame-en
+            overlay = annotated_frame.copy()
+            h, w, _ = frame.shape
+            cv2.rectangle(overlay, (w - 300, 0), (w, 100), (255, 255, 255), -1)
+            alpha = 0.6
+            cv2.addWeighted(overlay, alpha, annotated_frame, 1 - alpha, 0, annotated_frame)
+
+            if self.total_possession_frames > 0:
+                team1_pct = 100 * self.team1_possession / self.total_possession_frames
+                team2_pct = 100 * self.team2_possession / self.total_possession_frames
+            else:
+                team1_pct = team2_pct = 0
+
+            cv2.putText(annotated_frame, f"Team1: {team1_pct:.1f} %", (w - 290, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2)
+            cv2.putText(annotated_frame, f"Team2: {team2_pct:.1f} %", (w - 290, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2)
+
+            frames[frame_num] = annotated_frame
+
+        return frames

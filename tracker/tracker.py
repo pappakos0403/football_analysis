@@ -28,6 +28,9 @@ class Tracker:
         self.team2_possession = 0
         self.total_possession_frames = 0
 
+        # Kapus azonosítók tárolása
+        self.goalkeeper_ids = set()
+
     def draw_ellipse(self, frame, bbox, color, track_id = None):
         # Alsó koordináta a bbox alapján
         y2 = int(bbox[3])  
@@ -136,11 +139,6 @@ class Tracker:
 
             # Objektumok követése supervision-nel
             detection_supervision = sv.Detections.from_ultralytics(detection)
-
-            # Kapus átalakítása játékosra
-            for object_index, class_id in enumerate(detection_supervision.class_id):
-                if cls_names[class_id] == "goalkeeper":
-                    detection_supervision.class_id[object_index] = cls_names_inv["player"]
                     
             tracked_objects = self.tracker.update_with_detections(detection_supervision)
 
@@ -152,6 +150,10 @@ class Tracker:
                 bbox = frame_detection[0].tolist()
                 cls_id = frame_detection[3]
                 track_id = frame_detection[4]
+
+                if cls_names[cls_id] == "goalkeeper":
+                    self.goalkeeper_ids.add(track_id)
+                    cls_id = cls_names_inv['player']
 
                 if cls_id == cls_names_inv['player']:
                     tracks["players"][frame_num][track_id] = {"bbox":bbox}
@@ -213,6 +215,9 @@ class Tracker:
 
             # Játékosok:
             for track_id, player in player_dict.items():
+                # Csak a mezőnyjátékosokat vizsgáljuk
+                if track_id in self.goalkeeper_ids:
+                    continue
                 # Játékos színének meghatározása
                 upper_body_image = self.teamAssigner.get_upper_body_image(frame, player["bbox"])
                 apperance_feature = self.teamAssigner.get_player_color(upper_body_image)
@@ -243,20 +248,7 @@ class Tracker:
                     closest_player_bbox = player_dict[closest_player_id]["bbox"]
                     # Piros háromszög rajzolása a labdához legközelebbi játékos fölé
                     annotated_frame = self.draw_triangle(annotated_frame, closest_player_bbox, (0, 0, 255))
-
-                    # Legközelebbi játékos mezszínének meghatározása
-                    upper_body_image = self.teamAssigner.get_upper_body_image(frame, closest_player_bbox)
-                    player_color = self.teamAssigner.get_player_color(upper_body_image)
-                    team_number = self.teamAssigner.get_player_to_team(player_color, self.team1_color, self.team2_color)
-
-                    # Labdabirtoklás számlálása
-                    if team_number == 1:
-                        self.team1_possession += 1
-                    elif team_number == 2:
-                        self.team2_possession += 1
-
-                    self.total_possession_frames += 1
-
+                    
             # Kulcspontok és vonalak kirajzolása, ha van keypoint adat
             if keypoints_list and frame_num < len(keypoints_list):
                 pts = keypoints_list[frame_num]
@@ -298,26 +290,38 @@ class Tracker:
                     annotated_frame, f"Camera Movement Y: {dy:.2f}", (10, 65),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3
                 )
-
-            # Labdabirtoklás százalékos arányának kirajzolása
-            overlay = annotated_frame.copy()
-            h, w, _ = frame.shape
-            cv2.rectangle(overlay, (w - 300, 0), (w, 100), (255, 255, 255), -1)
-            alpha = 0.6
-            cv2.addWeighted(overlay, alpha, annotated_frame, 1 - alpha, 0, annotated_frame)
-
-            # Százalékos értékek kiszámítása
-            if self.total_possession_frames > 0:
-                team1_pct = 100 * self.team1_possession / self.total_possession_frames
-                team2_pct = 100 * self.team2_possession / self.total_possession_frames
-            else:
-                team1_pct = team2_pct = 0
-
-            # Szöveg megjelenítése
-            cv2.putText(annotated_frame, f"Team1: {team1_pct:.1f} %", (w - 290, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2)
-            cv2.putText(annotated_frame, f"Team2: {team2_pct:.1f} %", (w - 290, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2)
-
+            
             annotated_frames.append(annotated_frame)
 
-        print(f"Kapus ID-k: {self.goalkeeper_ids}")
+        return annotated_frames
+    
+    # Kapusokat külön annotáljuk
+    def goalkeeper_annotations(self, annotated_frames, tracks, frames, pitch_coordinates_list, field_sides):
+        for frame_num, frame in enumerate(frames):
+            annotated_frame = annotated_frames[frame_num]
+            player_dict = tracks["players"][frame_num]
+            coords = pitch_coordinates_list[frame_num] if pitch_coordinates_list and frame_num < len(pitch_coordinates_list) else {}
+
+            # Csak a kapusokat vizsgáljuk
+            for track_id, player in player_dict.items():
+                if track_id not in self.goalkeeper_ids:
+                    continue
+
+                # Térfél szerint besoroljuk a kapust a megfelelő csapatba
+                if track_id in coords:
+                    x_coord = coords[track_id][0]
+                    if field_sides[1] == "left":
+                        team_number = 1 if x_coord < 52.5 else 2
+                    else:
+                        team_number = 1 if x_coord > 52.5 else 2
+
+                    # Kapus annotációk rajzolása
+                    if team_number == 1:
+                        annotated_frame = self.draw_ellipse(annotated_frame, player["bbox"], self.team1_color, track_id=track_id)
+                    else:
+                        annotated_frame = self.draw_ellipse(annotated_frame, player["bbox"], self.team2_color, track_id=track_id)
+
+            # Annotált képkockák frissítése
+            annotated_frames[frame_num] = annotated_frame
+
         return annotated_frames
