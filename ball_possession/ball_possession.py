@@ -4,13 +4,16 @@ import cv2
 
 class BallPossession:
     def __init__(self, distance_threshold = 60):
-        # Maximum távolság a labdától
-        self.distance_threshold = distance_threshold
-
         # Labdabirtoklás számlálók inicializálása
         self.team1_possession = 0
         self.team2_possession = 0
         self.total_possession_frames = 0
+
+        # Szűrők a legközelebbi játékos meghatárosához
+        self.distance_threshold = distance_threshold # távolság a labdától (pixelben)
+        self.prev_possession_id = None
+        self.possession_streak = 0
+        self.streak_threshold = 4
     
     def player_on_the_ball(self, players, ball_bbox):
         # Labda középpontjának meghatározása
@@ -43,7 +46,7 @@ class BallPossession:
         return None
     
     # Labdabirtoklás számítása és megjelenítése
-    def measure_and_draw_possession(self, frames, tracks, team_assigner, team1_color, team2_color, 
+    def measure_and_draw_possession(self, frames, tracks, tracker, team_assigner, team1_color, team2_color, 
                                     goalkeeper_ids, pitch_coordinates_list, field_sides):
         for frame_num, frame in enumerate(frames):
             player_dict = tracks["players"][frame_num]
@@ -55,32 +58,55 @@ class BallPossession:
                 ball_bbox = [int(v) for v in ball_dict[1]["bbox"]]
                 closest_player_id = self.player_on_the_ball(player_dict, ball_bbox)
 
-                # Ha a legközelebbi játékos a labdán belül van, akkor csapatot rendelünk hozzá
+                # Kizárjuk, ha a labda túl magasan van a játékoshoz képest (valószínűleg levegőben van)
                 if closest_player_id and closest_player_id in player_dict:
+                    ball_y1 = ball_bbox[1]
+                    player_y2 = player_dict[closest_player_id]["bbox"][3]
+                    if ball_y1 < player_y2 - 50:  # Ha a labda túl magasan van, akkor figyelmen kívül hagyjuk
+                        closest_player_id = None
 
-                    # Kapusok kezelése
-                    if closest_player_id in goalkeeper_ids:
-                        coords = pitch_coordinates_list[frame_num]
-                        if closest_player_id in coords:
-                            x_coord = coords[closest_player_id][0]
-                            if field_sides[1] == "left":
-                                team_number = 1 if x_coord < 52.5 else 2
-                            else:
-                                team_number = 1 if x_coord > 52.5 else 2
-                    # Mezőnyjátékosok kezelése
+                # Megnézzük, hány framen keresztül birtokolja a játékos a labdát
+                if closest_player_id is not None:
+                    if closest_player_id == self.prev_possession_id:
+                        self.possession_streak += 1
                     else:
+                        self.prev_possession_id = closest_player_id
+                        self.possession_streak = 1
+                else:
+                    self.prev_possession_id = None
+                    self.possession_streak = 0
+
+                # Ha átment a szűrőkon, akkor csapatot rendelünk a labdát birtokló játékoshoz
+                if self.possession_streak >= self.streak_threshold:
+                    if closest_player_id and closest_player_id in player_dict:
                         bbox = player_dict[closest_player_id]["bbox"]
-                        upper_body = team_assigner.get_upper_body_image(frame, bbox)
-                        color = team_assigner.get_player_color(upper_body)
-                        team_number = team_assigner.get_player_to_team(color, team1_color, team2_color)
+                        annotated_frame = tracker.draw_triangle(annotated_frame, bbox, (0, 0, 255))
+                    # Ha a legközelebbi játékos a labdán belül van, akkor csapatot rendelünk hozzá
+                    if closest_player_id and closest_player_id in player_dict:
 
-                    # Számlálók frissítése
-                    if team_number == 1:
-                        self.team1_possession += 1
-                    elif team_number == 2:
-                        self.team2_possession += 1
+                        # Kapusok kezelése
+                        if closest_player_id in goalkeeper_ids:
+                            coords = pitch_coordinates_list[frame_num]
+                            if closest_player_id in coords:
+                                x_coord = coords[closest_player_id][0]
+                                if field_sides[1] == "left":
+                                    team_number = 1 if x_coord < 52.5 else 2
+                                else:
+                                    team_number = 1 if x_coord > 52.5 else 2
+                        # Mezőnyjátékosok kezelése
+                        else:
+                            bbox = player_dict[closest_player_id]["bbox"]
+                            upper_body = team_assigner.get_upper_body_image(frame, bbox)
+                            color = team_assigner.get_player_color(upper_body)
+                            team_number = team_assigner.get_player_to_team(color, team1_color, team2_color)
 
-                    self.total_possession_frames += 1
+                        # Számlálók frissítése
+                        if team_number == 1:
+                            self.team1_possession += 1
+                        elif team_number == 2:
+                            self.team2_possession += 1
+
+                        self.total_possession_frames += 1
 
             # Labdabirtoklás megjelnítése minden frame-en
             overlay = annotated_frame.copy()

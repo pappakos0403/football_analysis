@@ -1,6 +1,5 @@
 from utils import load_video, generate_output_video, get_majority_team_sides
 from tracker import Tracker
-from camera_movement import CameraMovement
 from pitch_config import process_keypoint_annotations
 from ultralytics import YOLO
 from heatmaps import generate_player_heatmaps
@@ -27,7 +26,6 @@ frames, fps, width, height = load_video(video_path)
 
 # Inicializálás
 tracks = None
-camera_movements = None
 keypoint_data = None
 
 # Stub fájl ellenőrzése
@@ -40,14 +38,12 @@ if os.path.exists(stub_path):
         # Szerkezet
         if (isinstance(stub_data, dict) and 
             "tracks" in stub_data and 
-            "goalkeeper_ids" in stub_data and
-            "camera_movements" in stub_data and 
+            "goalkeeper_ids" in stub_data and 
             "keypoints" in stub_data and
             "player_coordinates" in stub_data):
 
             tracks = stub_data["tracks"]
             tracker.goalkeeper_ids = stub_data.get("goalkeeper_ids", set())
-            camera_movements = stub_data["camera_movements"]
             keypoint_data = {
                 "keypoints": stub_data["keypoints"],
                 "player_coordinates": stub_data["player_coordinates"]
@@ -65,11 +61,6 @@ else:
     tracks = tracker.detect_video(frames, read_from_stub=False, stub_path=None)
     print("Játékosok, játékvezetők és labda detektálva!")
 
-    # Kameramozgás számítása
-    camera_estimator = CameraMovement(frames[0])
-    camera_movements = camera_estimator.calculate_movement(frames, read_from_stub=False, stub_path=None)
-    print("Kameramozgás változása kiszámítva!")
-
     # Kulcspontok és játékoskoordináták számítása
     keypoint_data = process_keypoint_annotations(players_tracks=tracks["players"])
     print("Kulcspontok detektálva és játékoskoordináták kiszámítva!")
@@ -78,7 +69,6 @@ else:
     stub_data = {
         "tracks": tracks,
         "goalkeeper_ids": tracker.goalkeeper_ids,
-        "camera_movements": camera_movements,
         "keypoints": keypoint_data.get("keypoints", []),
         "player_coordinates": keypoint_data.get("player_coordinates", [])
     }
@@ -91,7 +81,6 @@ else:
 annotated_frames = tracker.annotations(
     frames,
     tracks,
-    camera_movements=camera_movements,
     keypoints_list=keypoint_data.get("keypoints", []),
     pitch_coordinates_list=keypoint_data.get("player_coordinates", [])
 )
@@ -121,6 +110,7 @@ possession = BallPossession()
 annotated_frames = possession.measure_and_draw_possession(
     annotated_frames,
     tracks,
+    tracker,
     tracker.teamAssigner,
     tracker.team1_color,
     tracker.team2_color,

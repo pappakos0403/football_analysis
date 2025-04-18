@@ -2,7 +2,6 @@ from ultralytics import YOLO
 from utils.bbox_utils import get_center_of_bbox, get_bbox_width
 from utils.team_assigner_utils import TeamAssigner
 from ball_possession import BallPossession
-from camera_movement import CameraMovement
 from pitch_config import FootballPitchConfiguration
 import pickle
 import os
@@ -175,11 +174,6 @@ class Tracker:
         # Labda pozíciók interpolálása
         tracks["ball"] = self.interpolate_ball(tracks["ball"])
 
-        # Kameramozgás becslése és pozíció korrekció
-        camera_estimator = CameraMovement(frames[0])
-        camera_movements = camera_estimator.calculate_movement(frames, read_from_stub, stub_path)
-        camera_estimator.adjust_tracks(tracks, camera_movements)
-
         return tracks
 
 
@@ -247,7 +241,7 @@ class Tracker:
                 if closest_player_id is not None:
                     closest_player_bbox = player_dict[closest_player_id]["bbox"]
                     # Piros háromszög rajzolása a labdához legközelebbi játékos fölé
-                    annotated_frame = self.draw_triangle(annotated_frame, closest_player_bbox, (0, 0, 255))
+                    # annotated_frame = self.draw_triangle(annotated_frame, closest_player_bbox, (0, 0, 255))
                     
             # Kulcspontok és vonalak kirajzolása, ha van keypoint adat
             if keypoints_list and frame_num < len(keypoints_list):
@@ -274,22 +268,6 @@ class Tracker:
                         y_bottom = int(y2)
                         text = f"x: {coords[track_id][0]:.1f}m y: {coords[track_id][1]:.1f}m"
                         cv2.putText(annotated_frame, text, (x_center-70, y_bottom+20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 2)
-
-            # Kameramozgás szöveges megjelenítése
-            if camera_movements is not None and frame_num < len(camera_movements):
-                dx, dy = camera_movements[frame_num]
-                overlay = annotated_frame.copy()
-                cv2.rectangle(overlay, (0, 0), (500, 100), (255, 255, 255), -1)
-                alpha = 0.6
-                cv2.addWeighted(overlay, alpha, annotated_frame, 1 - alpha, 0, annotated_frame)
-                cv2.putText(
-                    annotated_frame, f"Camera Movement X: {dx:.2f}", (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3
-                )
-                cv2.putText(
-                    annotated_frame, f"Camera Movement Y: {dy:.2f}", (10, 65),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3
-                )
             
             annotated_frames.append(annotated_frame)
 
