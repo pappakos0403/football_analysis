@@ -1,3 +1,5 @@
+# 2. félév
+
 from utils import load_video, generate_output_video, get_majority_team_sides
 from tracker import Tracker
 from pitch_config import process_keypoint_annotations
