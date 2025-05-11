@@ -95,6 +95,7 @@ field_sides = get_majority_team_sides(
     team2_color=tracker.team2_color,
     team_assigner=tracker.teamAssigner
 )
+print("Csapatok térfél-hozzárendelése befejeződött!")
 
 # Kapusok annotálása a videón
 annotated_frames = tracker.goalkeeper_annotations(
@@ -104,6 +105,7 @@ annotated_frames = tracker.goalkeeper_annotations(
     keypoint_data.get("player_coordinates", []),
     field_sides
 )
+print("Kapusok annotálása befejeződött!")
 
 # Labdabirtoklás számítása és megjelenítése
 possession = BallPossession()
@@ -118,6 +120,7 @@ annotated_frames = possession.measure_and_draw_possession(
     keypoint_data.get("player_coordinates", []),
     field_sides
 )
+print("Labdabirtoklás számítása és megjelenítése befejeződött!")
 
 # Hőtérképek generálása
 generate_player_heatmaps(keypoint_data.get("player_coordinates", []))

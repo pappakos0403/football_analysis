@@ -23,12 +23,16 @@ class Tracker:
         self.threshold = 70
 
         # Labdabirtoklás méréséhez szükséges változók
+        self.possession = BallPossession()
         self.team1_possession = 0
         self.team2_possession = 0
         self.total_possession_frames = 0
 
         # Kapus azonosítók tárolása
         self.goalkeeper_ids = set()
+
+        # Kulcspontokhoz szükséges változók
+        self.pitch_edges = FootballPitchConfiguration().edges
 
     def draw_ellipse(self, frame, bbox, color, track_id = None):
         # Alsó koordináta a bbox alapján
@@ -181,6 +185,9 @@ class Tracker:
 
         annotated_frames = []
 
+        # track_id gyorsítótár
+        self.track_id_to_team = {}
+
         for frame_num, frame in enumerate(frames):
             annotated_frame = frame.copy()
 
@@ -213,9 +220,14 @@ class Tracker:
                 if track_id in self.goalkeeper_ids:
                     continue
                 # Játékos színének meghatározása
-                upper_body_image = self.teamAssigner.get_upper_body_image(frame, player["bbox"])
-                apperance_feature = self.teamAssigner.get_player_color(upper_body_image)
-                team_color_num = self.teamAssigner.get_player_to_team(apperance_feature, self.team1_color, self.team2_color)
+                if track_id not in self.track_id_to_team:
+                    upper_body_image = self.teamAssigner.get_upper_body_image(frame, player["bbox"])
+                    apperance_feature = self.teamAssigner.get_player_color(upper_body_image)
+                    team_color_num = self.teamAssigner.get_player_to_team(apperance_feature, self.team1_color, self.team2_color)
+                    self.track_id_to_team[track_id] = team_color_num
+                else:
+                    team_color_num = self.track_id_to_team[track_id]
+
                 # Elipszis rajzolása a játékosok alá
                 if team_color_num == 1:
                     annotated_frame = self.draw_ellipse(annotated_frame, player["bbox"], self.team1_color, track_id=track_id)
@@ -230,18 +242,15 @@ class Tracker:
 
             # Labda:
             if 1 in ball_dict:
-                possession = BallPossession()
                 ball_bbox = [int(v) for v in ball_dict[1]["bbox"]]
                 # Labda fölé zöld háromszög rajzolása
                 annotated_frame = self.draw_triangle(annotated_frame, ball_bbox, (0, 255, 0))
 
                 # Legközelebbi játékos meghatározása a labdához
-                closest_player_id = possession.player_on_the_ball(player_dict, ball_bbox)
+                closest_player_id = self.possession.player_on_the_ball(player_dict, ball_bbox)
 
                 if closest_player_id is not None:
                     closest_player_bbox = player_dict[closest_player_id]["bbox"]
-                    # Piros háromszög rajzolása a labdához legközelebbi játékos fölé
-                    # annotated_frame = self.draw_triangle(annotated_frame, closest_player_bbox, (0, 0, 255))
                     
             # Kulcspontok és vonalak kirajzolása, ha van keypoint adat
             if keypoints_list and frame_num < len(keypoints_list):
@@ -251,7 +260,7 @@ class Tracker:
                     for pt in pts:
                         cv2.circle(annotated_frame, (int(pt[0]), int(pt[1])), radius=4, color=(255, 0, 0), thickness=-1)
                     # Kulcspontok összekötése -> pályavonalak rajzolása
-                    for edge in FootballPitchConfiguration().edges:
+                    for edge in self.pitch_edges:
                         idx1, idx2 = edge[0]-1, edge[1]-1
                         if idx1 < len(pts) and idx2 < len(pts):
                             pt1 = (int(pts[idx1][0]), int(pts[idx1][1]))
