@@ -3,6 +3,7 @@ from utils.bbox_utils import get_center_of_bbox, get_bbox_width
 from utils.team_assigner_utils import TeamAssigner
 from ball_possession import BallPossession
 from pitch_config import FootballPitchConfiguration
+from speed_and_distance_estimator import SpeedAndDistanceEstimator
 import pickle
 import os
 import cv2
@@ -11,7 +12,7 @@ import pandas as pd
 import supervision as sv
 
 class Tracker:
-    def __init__(self, model_path):
+    def __init__(self, model_path, video_fps):
         # Tracker modellhez szükséges inicializáció
         self.model = YOLO(model_path)
         self.tracker = sv.ByteTrack()
@@ -31,8 +32,11 @@ class Tracker:
         # Kapus azonosítók tárolása
         self.goalkeeper_ids = set()
 
-        # Kulcspontokhoz szükséges változók
+        # Kulcspontokhoz szükséges inicializáció
         self.pitch_edges = FootballPitchConfiguration().edges
+
+        # Sebesség és távolság becsléshez szükséges inicializáció
+        self.speed_estimator = SpeedAndDistanceEstimator(fps=video_fps)
 
     def draw_ellipse(self, frame, bbox, color, track_id = None):
         # Alsó koordináta a bbox alapján
@@ -273,10 +277,23 @@ class Tracker:
                 for track_id, player in tracks["players"][frame_num].items():
                     if track_id in coords:
                         x1,y1,x2,y2 = player["bbox"]
-                        x_center = int((x1+x2)/2)
+                        x_center = int((x1 + x2) / 2)
                         y_bottom = int(y2)
                         text = f"x: {coords[track_id][0]:.1f}m y: {coords[track_id][1]:.1f}m"
-                        cv2.putText(annotated_frame, text, (x_center-70, y_bottom+20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 2)
+                        #cv2.putText(annotated_frame, text, (x_center - 70, y_bottom + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
+
+                        # Sebesség és távolság mérése
+                        self.speed_estimator.add_measurement(track_id, coords[track_id], frame_num)
+                        speed_kmh, distance_m = self.speed_estimator.get_player_info(track_id)
+
+                        # Sebesség és távolság kiírása
+                        speed_dist_text = f"{speed_kmh:.1f} km/h, {distance_m:.1f} m"
+                        (text_width, text_height), _ = cv2.getTextSize(speed_dist_text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+                        text_x = x_center - text_width // 2
+                        cv2.putText(annotated_frame, speed_dist_text, (text_x, y_bottom + 20), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
+                        cv2.putText(annotated_frame, speed_dist_text, (text_x, y_bottom + 20), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
             
             annotated_frames.append(annotated_frame)
 

@@ -18,11 +18,11 @@ model_path = "models\\best.pt"
 # Keypoint detektáló modell elérési útvonala
 keypoint_model_path = "models\\best_keypoints.pt"
 
-# Modell betöltése
-tracker = Tracker(model_path)
-
 # Videó betöltése
 frames, fps, width, height = load_video(video_path)
+
+# Modell betöltése
+tracker = Tracker(model_path=model_path, video_fps=fps)
 
 # Inicializálás
 tracks = None
