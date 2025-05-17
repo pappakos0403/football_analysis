@@ -17,13 +17,13 @@ class Tracker:
         self.model = YOLO(model_path)
         self.tracker = sv.ByteTrack()
 
-        # Csapatok színének meghatározásához szükséges változók
+        # Csapatok színének meghatározásához szükséges inicializáció
         self.teamAssigner = TeamAssigner()
         self.team1_color = None
         self.team2_color = None
         self.threshold = 70
 
-        # Labdabirtoklás méréséhez szükséges változók
+        # Labdabirtoklás méréséhez szükséges inicalizáció
         self.possession = BallPossession()
         self.team1_possession = 0
         self.team2_possession = 0
@@ -327,5 +327,68 @@ class Tracker:
 
             # Annotált képkockák frissítése
             annotated_frames[frame_num] = annotated_frame
+
+        return annotated_frames
+    
+    # Képernyő tetején a csapatok színével ellátott négyzetek kirajzolása
+    def coloured_squares_annotations(self, annotated_frames):
+        for frame_index, frame in enumerate(annotated_frames):
+            # Kép méretének lekérdezése
+            h, w, _ = frame.shape
+
+            # Négyzetek mérete és pozíciója
+            square_size = 30
+            gap = 10
+
+            # Teljes szélesség kiszámítása (2 négyzet + 2 gap + 2 szöveg)
+            total_width = (square_size * 2) + (gap * 3) + 160
+
+            # Kezdő X pozíció a középre igazításhoz
+            start_x = (w - total_width) // 2
+            start_y = 10
+
+            # Overlay másolat készítése
+            overlay = frame.copy()
+
+            # Átlátszó téglalap háttér (fehér, 60%-os átlátszóság)
+            cv2.rectangle(overlay, (start_x - 10, start_y - 5), 
+                        (start_x + total_width + 10, start_y + square_size + 5), 
+                        (255, 255, 255), -1)
+
+            # Átlátszóság alkalmazása
+            alpha = 0.6
+            cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+
+            # Team1 négyzet kirajzolása
+            cv2.rectangle(frame, (start_x, start_y), 
+                        (start_x + square_size, start_y + square_size), 
+                        self.team1_color, -1)  # Kitöltött négyzet
+
+            # Fekete kontúr
+            cv2.rectangle(frame, (start_x, start_y), 
+                        (start_x + square_size, start_y + square_size), 
+                        (0, 0, 0), 2)
+
+            # Szöveg megjelenítése
+            cv2.putText(frame, "Team1", (start_x + square_size + gap, start_y + 20), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2, cv2.LINE_AA)
+
+            # Team2 négyzet kirajzolása
+            team2_x = start_x + square_size + gap + 100  # Pozíció kiszámítása
+            cv2.rectangle(frame, (team2_x, start_y), 
+                        (team2_x + square_size, start_y + square_size), 
+                        self.team2_color, -1)
+
+            # Fekete kontúr
+            cv2.rectangle(frame, (team2_x, start_y), 
+                        (team2_x + square_size, start_y + square_size), 
+                        (0, 0, 0), 2)
+
+            # Szöveg megjelenítése
+            cv2.putText(frame, "Team2", (team2_x + square_size + gap, start_y + 20), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2, cv2.LINE_AA)
+
+            # Frissített frame visszaírása
+            annotated_frames[frame_index] = frame
 
         return annotated_frames

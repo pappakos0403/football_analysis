@@ -122,6 +122,10 @@ annotated_frames = possession.measure_and_draw_possession(
 )
 print("Labdabirtoklás számítása és megjelenítése befejeződött!")
 
+# Színes négyzetek annotálása
+annotated_frames = tracker.coloured_squares_annotations(annotated_frames)
+print("Csapatok színével ellátott négyzetek annotálása befejeződött!")
+
 # Hőtérképek generálása
 generate_player_heatmaps(keypoint_data.get("player_coordinates", []))
 print("Hőtérképek elmentve a heatmaps mappába!")
