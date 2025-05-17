@@ -1,4 +1,4 @@
-from utils import load_video, generate_output_video, get_majority_team_sides
+from utils import load_video, generate_output_video, get_majority_team_sides, closest_player_ids_filter
 from tracker import Tracker
 from pitch_config import process_keypoint_annotations
 from ultralytics import YOLO
@@ -107,18 +107,15 @@ annotated_frames = tracker.goalkeeper_annotations(
 )
 print("Kapusok annotálása befejeződött!")
 
+# Legközelebbi játékosok meghatározása a labdához, illetve ezen játékosok annotálása
+closest_player_ids_filtered = closest_player_ids_filter(tracker.closest_player_ids)
+annotated_frames = tracker.draw_closest_players_triangles(annotated_frames, closest_player_ids_filtered, tracks)
+
 # Labdabirtoklás számítása és megjelenítése
 possession = BallPossession()
 annotated_frames = possession.measure_and_draw_possession(
     annotated_frames,
-    tracks,
-    tracker,
-    tracker.teamAssigner,
-    tracker.team1_color,
-    tracker.team2_color,
-    tracker.goalkeeper_ids,
-    keypoint_data.get("player_coordinates", []),
-    field_sides
+    closest_player_ids_filtered,
 )
 print("Labdabirtoklás számítása és megjelenítése befejeződött!")
 

@@ -1,6 +1,7 @@
 from ultralytics import YOLO
 from utils.bbox_utils import get_center_of_bbox, get_bbox_width
 from utils.team_assigner_utils import TeamAssigner
+from utils.closest_player_ids_utils import closest_player_ids_filter
 from ball_possession import BallPossession
 from pitch_config import FootballPitchConfiguration
 from speed_and_distance_estimator import SpeedAndDistanceEstimator
@@ -37,6 +38,9 @@ class Tracker:
 
         # Sebesség és távolság becsléshez szükséges inicializáció
         self.speed_estimator = SpeedAndDistanceEstimator(fps=video_fps)
+
+        # Legközelebbi játékosok azonosítóinak tárolása
+        self.closest_player_ids = {}
 
     def draw_ellipse(self, frame, bbox, color, track_id = None):
         # Alsó koordináta a bbox alapján
@@ -251,10 +255,14 @@ class Tracker:
                 annotated_frame = self.draw_triangle(annotated_frame, ball_bbox, (0, 255, 0))
 
                 # Legközelebbi játékos meghatározása a labdához
-                closest_player_id = self.possession.player_on_the_ball(player_dict, ball_bbox)
+                closest_player_id = self.possession.player_on_the_ball(player_dict, ball_bbox, frame.shape[1], frame.shape[0])
 
+                # Legközelebbi játékosok azonosítóinak tárolása a passzok számának méréséhez
                 if closest_player_id is not None:
-                    closest_player_bbox = player_dict[closest_player_id]["bbox"]
+                    team_id = self.track_id_to_team.get(closest_player_id, None)
+                    self.closest_player_ids[frame_num] = (closest_player_id, team_id)
+                else:
+                    self.closest_player_ids[frame_num] = (None, None)
                     
             # Kulcspontok és vonalak kirajzolása, ha van keypoint adat
             if keypoints_list and frame_num < len(keypoints_list):
@@ -319,6 +327,11 @@ class Tracker:
                     else:
                         team_number = 1 if x_coord > 52.5 else 2
 
+                    # Kapus csapatának beállítása a closest_player_ids szótárban
+                    for frame_id, (player_id, _) in self.closest_player_ids.items():
+                        if player_id == track_id:
+                            self.closest_player_ids[frame_id] = (player_id, team_number)
+
                     # Kapus annotációk rajzolása
                     if team_number == 1:
                         annotated_frame = self.draw_ellipse(annotated_frame, player["bbox"], self.team1_color, track_id=track_id)
@@ -327,6 +340,33 @@ class Tracker:
 
             # Annotált képkockák frissítése
             annotated_frames[frame_num] = annotated_frame
+
+        return annotated_frames
+    
+    def draw_closest_players_triangles(self, frames, closest_player_ids_filtered, tracks):
+
+        annotated_frames = []
+
+        # Végigmegyünk minden frame-en
+        for frame_num, frame in enumerate(frames):
+            annotated_frame = frame.copy()
+
+            # Megnézzük, hogy az adott frame-en van-e legközelebbi játékos
+            player_id, team_id = closest_player_ids_filtered.get(frame_num, (None, None))
+
+            if player_id is not None:
+                # Lekérjük az aktuális játékos bounding boxát
+                player_data = tracks["players"][frame_num].get(player_id, None)
+
+                if player_data:
+                    bbox = player_data.get("bbox", None)
+
+                    if bbox:
+                        # Piros háromszög kirajzolása
+                        annotated_frame = self.draw_triangle(annotated_frame, bbox, (0, 0, 255))
+
+            # Hozzáadjuk az annotált frame-et a listához
+            annotated_frames.append(annotated_frame)
 
         return annotated_frames
     
