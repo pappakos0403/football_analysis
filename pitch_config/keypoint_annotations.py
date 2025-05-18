@@ -4,7 +4,7 @@ from ultralytics import YOLO
 from pitch_config import FootballPitchConfiguration
 from .view_transformer import ViewTransformer
 
-def process_keypoint_annotations(players_tracks=None):
+def process_keypoint_annotations(players_tracks=None, ball_tracks=None):
     
     # Beállított útvonalak és paraméterek
     INPUT_VIDEO_PATH = "input_videos/08fd33_4.mp4"
@@ -30,7 +30,8 @@ def process_keypoint_annotations(players_tracks=None):
     
     frame_count = 0
     all_keypoints = []       # minden képkocka detektált kulcspontjait tartalmazza
-    all_pitch_coords = []    # minden képkockára (track_id → (x, y) mért koordináta) dict
+    all_player_coords = []    # minden képkockára (x, y) játékos koordináta
+    all_ball_coords = []      # minden képkockára (x, y) labda koordináta
     
     # Keypoint detektáló modell betöltése
     model = YOLO(MODEL_PATH)
@@ -41,7 +42,7 @@ def process_keypoint_annotations(players_tracks=None):
             break
         
         frame_keypoints = None  # kulcspontok a képkockán
-        frame_pitch_coords = {} # játékos pályakoordináták (track_id → (x, y))
+        player_pitch_coords = {} # játékos pályakoordináták (track_id → (x, y))
         homography_valid = False
         
         # Átméretezés a 640x640-es bemenetre
@@ -70,7 +71,7 @@ def process_keypoint_annotations(players_tracks=None):
             print(f"Frame {frame_count}: Nem érhető el keypoint adat!")
             frame_keypoints = np.empty((0, 2))
         
-        # Pályakoordináták kiszámítása
+        # Pályakoordináták kiszámítása (játékosok)
         if homography_valid and players_tracks is not None and frame_count < len(players_tracks):
             inverse_transformer = ViewTransformer(source=image_points, target=pitch_points)
             for track_id, player in players_tracks[frame_count].items():
@@ -85,15 +86,31 @@ def process_keypoint_annotations(players_tracks=None):
                 x_field = transformed_point[0][0] / 100.0  # átváltás centiméterről méterre
                 y_field = transformed_point[0][1] / 100.0
                 y_field = (pitch_config.width / 100.0) - y_field  # y tengely megfordítása
-                frame_pitch_coords[track_id] = (x_field, y_field)
+                player_pitch_coords[track_id] = (x_field, y_field)
+
+        # Pályakoordináták kiszámítása (labda)
+        if ball_tracks is not None and frame_count < len(ball_tracks):
+            ball_data = ball_tracks[frame_count].get(1, {}).get("bbox", None)
+            if ball_data is not None:
+                x1, y1, x2, y2 = ball_data
+                ball_x = (x1 + x2) / 2
+                ball_y = (y1 + y2) / 2
+                ball_point = np.array([[ball_x, ball_y]], dtype=np.float32)
+                transformed_ball_point = inverse_transformer.transform_points(ball_point)
+                ball_x_field = transformed_ball_point[0][0] / 100.0
+                ball_y_field = transformed_ball_point[0][1] / 100.0
+                ball_y_field = (pitch_config.width / 100.0) - ball_y_field
+                ball_pitch_coords = (ball_x_field, ball_y_field)
         
         all_keypoints.append(frame_keypoints)
-        all_pitch_coords.append(frame_pitch_coords)
+        all_player_coords.append(player_pitch_coords)
+        all_ball_coords.append(ball_pitch_coords)
         frame_count += 1
 
     cap.release()
     
     return {
         "keypoints": all_keypoints,
-        "player_coordinates": all_pitch_coords
+        "player_coordinates": all_player_coords,
+        "ball_coordinates": all_ball_coords
     }

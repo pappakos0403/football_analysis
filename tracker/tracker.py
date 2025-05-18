@@ -189,7 +189,12 @@ class Tracker:
         return tracks
 
 
-    def annotations(self, frames, tracks, camera_movements=None, keypoints_list=None, pitch_coordinates_list=None):
+    def annotations(self, 
+                    frames, 
+                    tracks,  
+                    keypoints_list=None, 
+                    player_coordinates_list=None, 
+                    ball_coordinates_list=None):
 
         annotated_frames = []
 
@@ -254,15 +259,15 @@ class Tracker:
                 # Labda fölé zöld háromszög rajzolása
                 annotated_frame = self.draw_triangle(annotated_frame, ball_bbox, (0, 255, 0))
 
-                # Legközelebbi játékos meghatározása a labdához
-                closest_player_id = self.possession.player_on_the_ball(player_dict, ball_bbox, frame.shape[1], frame.shape[0])
+            closest_player_id = self.possession.player_on_the_ball(player_coordinates_list[frame_num], ball_coordinates_list[frame_num])
 
-                # Legközelebbi játékosok azonosítóinak tárolása a passzok számának méréséhez
-                if closest_player_id is not None:
-                    team_id = self.track_id_to_team.get(closest_player_id, None)
-                    self.closest_player_ids[frame_num] = (closest_player_id, team_id)
-                else:
-                    self.closest_player_ids[frame_num] = (None, None)
+            # Legközelebbi játékosok azonosítóinak tárolása a passzok számának méréséhez
+            if closest_player_id is not None:
+                team_id = self.track_id_to_team.get(closest_player_id, None)
+                self.closest_player_ids[frame_num] = (closest_player_id, team_id)
+            else:
+                self.closest_player_ids[frame_num] = (None, None)
+
                     
             # Kulcspontok és vonalak kirajzolása, ha van keypoint adat
             if keypoints_list and frame_num < len(keypoints_list):
@@ -280,8 +285,8 @@ class Tracker:
                             cv2.line(annotated_frame, pt1, pt2, color=(255, 255, 0), thickness=2)
 
             # Játékosok pályakoordinátáinak kiírása
-            if pitch_coordinates_list and frame_num < len(pitch_coordinates_list):
-                coords = pitch_coordinates_list[frame_num]
+            if player_coordinates_list and frame_num < len(player_coordinates_list):
+                coords = player_coordinates_list[frame_num]
                 for track_id, player in tracks["players"][frame_num].items():
                     if track_id in coords:
                         x1,y1,x2,y2 = player["bbox"]
@@ -308,11 +313,11 @@ class Tracker:
         return annotated_frames
     
     # Kapusokat külön annotáljuk
-    def goalkeeper_annotations(self, annotated_frames, tracks, frames, pitch_coordinates_list, field_sides):
+    def goalkeeper_annotations(self, annotated_frames, tracks, frames, player_coordinates_list, field_sides):
         for frame_num, frame in enumerate(frames):
             annotated_frame = annotated_frames[frame_num]
             player_dict = tracks["players"][frame_num]
-            coords = pitch_coordinates_list[frame_num] if pitch_coordinates_list and frame_num < len(pitch_coordinates_list) else {}
+            coords = player_coordinates_list[frame_num] if player_coordinates_list and frame_num < len(player_coordinates_list) else {}
 
             # Csak a kapusokat vizsgáljuk
             for track_id, player in player_dict.items():

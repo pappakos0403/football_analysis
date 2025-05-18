@@ -40,13 +40,15 @@ if os.path.exists(stub_path):
             "tracks" in stub_data and 
             "goalkeeper_ids" in stub_data and 
             "keypoints" in stub_data and
-            "player_coordinates" in stub_data):
+            "player_coordinates" in stub_data and
+            "ball_coordinates" in stub_data):
 
             tracks = stub_data["tracks"]
             tracker.goalkeeper_ids = stub_data.get("goalkeeper_ids", set())
             keypoint_data = {
                 "keypoints": stub_data["keypoints"],
-                "player_coordinates": stub_data["player_coordinates"]
+                "player_coordinates": stub_data["player_coordinates"],
+                "ball_coordinates": stub_data("ball_coordinates")
             }
             print("Stub fájl betöltve!")
         else:
@@ -62,15 +64,18 @@ else:
     print("Játékosok, játékvezetők és labda detektálva!")
 
     # Kulcspontok és játékoskoordináták számítása
-    keypoint_data = process_keypoint_annotations(players_tracks=tracks["players"])
-    print("Kulcspontok detektálva és játékoskoordináták kiszámítva!")
+    keypoint_data = process_keypoint_annotations(
+        players_tracks=tracks["players"],
+        ball_tracks=tracks["ball"])
+    print("Kulcspontok detektálva, játékoskoordináták és labdakoordináták kiszámítva!")
 
     # Mentés stub fájlba
     stub_data = {
         "tracks": tracks,
         "goalkeeper_ids": tracker.goalkeeper_ids,
         "keypoints": keypoint_data.get("keypoints", []),
-        "player_coordinates": keypoint_data.get("player_coordinates", [])
+        "player_coordinates": keypoint_data.get("player_coordinates", []),
+        "ball_coordinates": keypoint_data.get("ball_coordinates", [])
     }
     os.makedirs(os.path.dirname(stub_path), exist_ok=True)
     with open(stub_path, "wb") as f:
@@ -82,7 +87,8 @@ annotated_frames = tracker.annotations(
     frames,
     tracks,
     keypoints_list=keypoint_data.get("keypoints", []),
-    pitch_coordinates_list=keypoint_data.get("player_coordinates", [])
+    player_coordinates_list=keypoint_data.get("player_coordinates", []),
+    ball_coordinates_list=keypoint_data.get("ball_coordinates", [])
 )
 print("Annotálás befejeződött!")
 
@@ -132,3 +138,8 @@ generate_output_video(annotated_frames, output_video_path, fps, width, height)
 print("Kimeneti videó mentve:", output_video_path)
 
 print("Kapus ID-k:", tracker.goalkeeper_ids)
+
+# Legközelebbi játékosok szótár kiírása
+print("Legközelebbi játékosok szótár:")
+for frame_num, (player_id, team_id) in closest_player_ids_filtered.items():
+    print(f"Frame {frame_num}: Játékos ID: {player_id} Team ID: {team_id}")

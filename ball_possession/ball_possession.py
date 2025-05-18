@@ -3,50 +3,37 @@ from utils import get_center_of_bbox, TeamAssigner
 import cv2
 
 class BallPossession:
-    def __init__(self, distance_threshold = 60):
+    def __init__(self):
         # Labdabirtoklás számlálók inicializálása
         self.team1_possession = 0
         self.team2_possession = 0
         self.total_possession_frames = 0
 
         # Szűrők a legközelebbi játékos meghatárosához
-        self.distance_threshold = distance_threshold # távolság a labdától (pixelben)
+        self.distance_threshold = 1.5 # méterben
         self.streak_threshold = 3
         self.closest_player_streaks = {}
     
-    def player_on_the_ball(self, players, ball_bbox, frame_width, frame_height):
-        # Labda középpontjának meghatározása
-        ball_x, ball_y = get_center_of_bbox(ball_bbox)
-
-        # Minimális bbox méretek a hibás detektálások kiszűrésére
-        min_bbox_width = 10
-        min_bbox_height = 10
+    def player_on_the_ball(self, pitch_coordinates, ball_coordinates):
+        
+        # Labda koordinátáinak kiszedése
+        ball_x, ball_y = ball_coordinates
 
         # Szükséges változók
         min_distance = float('inf')
         closest_player_id = None
 
-        for track_id, player in players.items():
-            x1, y1, x2, y2 = player["bbox"]
-
-            # Bbox méreteinek ellenőrzése
-            if (x2 - x1) < min_bbox_width or (y2 - y1) < min_bbox_height:
+        # Játékosok koordinátáinak vizsgálata
+        for track_id, player_coords in pitch_coordinates.items():
+            if track_id == 1:  # labdát kihagyjuk, csak játékosokat vizsgálunk
                 continue
             
-            # Bbox a pályán belül van-e
-            if x1 < 0 or y1 < 0 or x2 > frame_width or y2 > frame_height:
-                continue
-
-            left_foot = (x1, y2) # bbox bal alsó sarka
-            right_foot = (x2, y2) # bbox jobb alsó sarka
-
-            left_distance = np.linalg.norm(np.array(left_foot) - np.array((ball_x, ball_y))) # bal láb távolsága a labdától
-            right_distance = np.linalg.norm(np.array(right_foot) - np.array((ball_x, ball_y))) # jobb láb távolsága a labdától
-
-            # Legrövidebb távolság kiszámítása a játékos lábai és a labda között
-            distance = min(left_distance, right_distance)
-
-            # Labdához legközelebbi játékos meghatározása
+            player_x, player_y = player_coords
+            
+            # Távolság számítása méterben (nem pixelben!)
+            distance = np.linalg.norm(np.array((player_x, player_y)) - np.array((ball_x, ball_y)))
+            
+            # Ha ez a legkisebb távolság eddig, akkor frissítjük
             if distance < min_distance:
                 closest_player_id = track_id
                 min_distance = distance
