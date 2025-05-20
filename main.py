@@ -48,7 +48,7 @@ if os.path.exists(stub_path):
             keypoint_data = {
                 "keypoints": stub_data["keypoints"],
                 "player_coordinates": stub_data["player_coordinates"],
-                "ball_coordinates": stub_data("ball_coordinates")
+                "ball_coordinates": stub_data["ball_coordinates"]
             }
             print("Stub fájl betöltve!")
         else:
@@ -113,16 +113,14 @@ annotated_frames = tracker.goalkeeper_annotations(
 )
 print("Kapusok annotálása befejeződött!")
 
-# Legközelebbi játékosok meghatározása a labdához, illetve ezen játékosok annotálása
+# Legközelebbi játékosok szűrése és annotálása
 closest_player_ids_filtered = closest_player_ids_filter(tracker.closest_player_ids)
 annotated_frames = tracker.draw_closest_players_triangles(annotated_frames, closest_player_ids_filtered, tracks)
+print("A labdához legközelebbi játékosok szűrése és annotálása befejeződött!")
 
 # Labdabirtoklás számítása és megjelenítése
 possession = BallPossession()
-annotated_frames = possession.measure_and_draw_possession(
-    annotated_frames,
-    closest_player_ids_filtered,
-)
+annotated_frames = possession.measure_and_draw_possession(annotated_frames, closest_player_ids_filtered)
 print("Labdabirtoklás számítása és megjelenítése befejeződött!")
 
 # Színes négyzetek annotálása

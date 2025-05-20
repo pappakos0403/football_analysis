@@ -10,9 +10,9 @@ class BallPossession:
         self.total_possession_frames = 0
 
         # Szűrők a legközelebbi játékos meghatárosához
-        self.distance_threshold = 1.5 # méterben
-        self.streak_threshold = 3
-        self.closest_player_streaks = {}
+        self.distance_threshold = 1.8 # méterben
+        self.streak_threshold = 2 # frame-ben
+        self.closest_player_streaks = {} # legközelebbi játékos streakjei
     
     def player_on_the_ball(self, pitch_coordinates, ball_coordinates):
         
@@ -57,14 +57,14 @@ class BallPossession:
 
         return None
     
-    def measure_and_draw_possession(self, frames, closest_player_ids_filtered):
+    def measure_and_draw_possession(self, frames, closest_player_ids):
         # Végigmegyünk minden frame-en
         for frame_num, frame in enumerate(frames):
             annotated_frame = frame.copy()
 
             # Szűrt listából kiszedjük az aktuális legközelebbi játékost
-            if frame_num in closest_player_ids_filtered:
-                player_id, team_id = closest_player_ids_filtered[frame_num]
+            if frame_num in closest_player_ids:
+                player_id, team_id = closest_player_ids[frame_num]
 
                 # Csak akkor dolgozunk vele, ha nem None
                 if player_id is not None and team_id is not None:

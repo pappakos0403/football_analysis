@@ -1,7 +1,6 @@
 from ultralytics import YOLO
 from utils.bbox_utils import get_center_of_bbox, get_bbox_width
 from utils.team_assigner_utils import TeamAssigner
-from utils.closest_player_ids_utils import closest_player_ids_filter
 from ball_possession import BallPossession
 from pitch_config import FootballPitchConfiguration
 from speed_and_distance_estimator import SpeedAndDistanceEstimator
