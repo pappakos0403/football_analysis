@@ -16,8 +16,8 @@ def closest_player_ids_filter(closest_player_ids_filtered):
             streak_frames.append(frame_num)
         else:
             # Ha a streak véget ér, ellenőrizzük a hosszát
-            if streak_count >= 2:
-                # Csak akkor hagyjuk meg, ha legalább 2 frame-en át volt ott
+            if streak_count >= 3:
+                # Csak akkor hagyjuk meg, ha legalább elérte a küszöböt
                 for f in streak_frames:
                     filtered_closest[f] = (current_id, current_team)
             else:

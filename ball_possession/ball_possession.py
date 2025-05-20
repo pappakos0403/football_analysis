@@ -10,7 +10,7 @@ class BallPossession:
         self.total_possession_frames = 0
 
         # Szűrők a legközelebbi játékos meghatárosához
-        self.distance_threshold = 1.8 # méterben
+        self.distance_threshold = 1.9 # méterben
         self.streak_threshold = 2 # frame-ben
         self.closest_player_streaks = {} # legközelebbi játékos streakjei
     

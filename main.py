@@ -4,6 +4,7 @@ from pitch_config import process_keypoint_annotations
 from ultralytics import YOLO
 from heatmaps import generate_player_heatmaps
 from ball_possession import BallPossession
+from passing_measurement import PassCounter
 import os
 import pickle
 
@@ -122,6 +123,12 @@ print("A labdához legközelebbi játékosok szűrése és annotálása befejez�
 possession = BallPossession()
 annotated_frames = possession.measure_and_draw_possession(annotated_frames, closest_player_ids_filtered)
 print("Labdabirtoklás számítása és megjelenítése befejeződött!")
+
+# Passzok számítása és annotálása
+pass_counter = PassCounter()
+pass_counter.process_passes_per_frame(closest_player_ids_filtered, total_frames=len(frames))
+annotated_frames = pass_counter.draw_pass_statistics(annotated_frames)
+print("Passzok számítása és annotálása befejeződött!")
 
 # Színes négyzetek annotálása
 annotated_frames = tracker.coloured_squares_annotations(annotated_frames)
