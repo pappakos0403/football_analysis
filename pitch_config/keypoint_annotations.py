@@ -4,15 +4,13 @@ from ultralytics import YOLO
 from pitch_config import FootballPitchConfiguration
 from .view_transformer import ViewTransformer
 
-def process_keypoint_annotations(players_tracks=None, ball_tracks=None):
+def process_keypoint_annotations(video_path, keypoint_model_path, players_tracks=None, ball_tracks=None):
     
-    # Beállított útvonalak és paraméterek
-    INPUT_VIDEO_PATH = "input_videos/08fd33_4.mp4"
-    MODEL_PATH = "models/best_keypoints.pt"
+    # Konfidencia határérték
     confidence_threshold = 0.5
     
     # Videó megnyitása
-    cap = cv2.VideoCapture(INPUT_VIDEO_PATH)
+    cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         print("Nem sikerült megnyitni a videót!")
         return None
@@ -34,7 +32,7 @@ def process_keypoint_annotations(players_tracks=None, ball_tracks=None):
     all_ball_coords = []      # minden képkockára (x, y) labda koordináta
     
     # Keypoint detektáló modell betöltése
-    model = YOLO(MODEL_PATH)
+    model = YOLO(keypoint_model_path)
     
     while True:
         ret, fullhd_frame = cap.read()

@@ -9,9 +9,12 @@ import os
 import pickle
 
 # Videófájl elérési útvonalai
-video_path = "input_videos\\08fd33_4.mp4"
-output_video_path = "output_videos\\output_video.avi"
-stub_path = "stubs\\08fd33_4.pkl"
+filename = "08fd33_4.mp4"
+output_filename = f"annotated_{os.path.splitext(filename)[0]}.avi"
+
+video_path = f"input_videos\\{filename}"
+stub_path = f"stubs\\{os.path.splitext(filename)[0]}.pkl"
+output_video_path = f"output_videos\\{output_filename}"
 
 # Objektumdetektáló modell elérési útvonala
 model_path = "models\\best.pt"
@@ -66,8 +69,11 @@ else:
 
     # Kulcspontok és játékoskoordináták számítása
     keypoint_data = process_keypoint_annotations(
+        video_path,
+        keypoint_model_path,
         players_tracks=tracks["players"],
-        ball_tracks=tracks["ball"])
+        ball_tracks=tracks["ball"],
+    )
     print("Kulcspontok detektálva, játékoskoordináták és labdakoordináták kiszámítva!")
 
     # Mentés stub fájlba

@@ -1,5 +1,3 @@
-# passing_measurement.py
-
 import cv2
 
 class PassCounter:
@@ -18,9 +16,7 @@ class PassCounter:
         self.team2_inaccurate = 0
 
     def process_passes_per_frame(self, closest_player_ids_filtered: dict, total_frames: int):
-        """
-        Frame-enkénti feldolgozás, eltároljuk minden frame-re az akkori statisztikát.
-        """
+
         for frame_num in range(total_frames):
             player_id, team_id = closest_player_ids_filtered.get(frame_num, (None, None))
 
@@ -53,9 +49,7 @@ class PassCounter:
             ))
 
     def draw_pass_statistics(self, frames):
-        """
-        Frame-enként megjeleníti a passz statisztikát a bal felső sarokban.
-        """
+
         for i, frame in enumerate(frames):
             if i >= len(self.stats_per_frame):
                 break  # ne lépjünk túl
