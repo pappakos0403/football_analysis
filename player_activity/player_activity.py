@@ -123,7 +123,7 @@ def generate_player_activity_summary(player_coordinates_list, speed_estimator, t
         team1_avg_distance = np.mean([v[2] for v in team1_data.values()])
         team2_avg_distance = np.mean([v[2] for v in team2_data.values()])
 
-        metrics = ['Átlagos sebesség', 'Átlagos max seb.', 'Átlagos megtett távolság', 'Összes megtett távolság']
+        metrics = ['Átlagos sebesség', 'Átlagos max sebesség', 'Átlagos megtett távolság', 'Összes megtett távolság']
         team1_values = [team1_avg_speed, team1_max_speed, team1_avg_distance, team1_total_distance]
         team2_values = [team2_avg_speed, team2_max_speed, team2_avg_distance, team2_total_distance]
 

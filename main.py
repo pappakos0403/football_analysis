@@ -7,6 +7,8 @@ from ball_possession import BallPossession
 from passing_measurement import PassCounter
 from player_positions_per_frame import plot_players_per_half_graph
 from player_activity import generate_player_activity_summary
+from offside_detection import OffsideDetector
+import numpy as np
 import os
 import pickle
 
@@ -137,6 +139,24 @@ pass_counter = PassCounter()
 pass_counter.process_passes_per_frame(closest_player_ids_filtered, total_frames=len(frames))
 annotated_frames = pass_counter.draw_pass_statistics(annotated_frames)
 print("Passzok számítása és annotálása befejeződött!")
+
+# Lesen álló játékosok detektálása és zászló megjelenítése
+offside_detector = OffsideDetector(
+    player_coordinates=keypoint_data["player_coordinates"],
+    ball_coordinates=keypoint_data["ball_coordinates"],
+    closest_player_ids_filtered=closest_player_ids_filtered,
+    track_id_to_team=tracker.track_id_to_team,
+    field_sides=field_sides,
+    flag_path="offside_detection/offside_flag.png"
+)
+offsides_per_frame = offside_detector.detect_offsides_per_frame()
+annotated_frames = offside_detector.draw_offside_flags(annotated_frames, offsides_per_frame, tracks)
+offside_detector.plot_top5_offsides(
+    fps=fps,
+    team1_color_rgb=tuple(np.array(tracker.team1_color) / 255.0),
+    team2_color_rgb=tuple(np.array(tracker.team2_color) / 255.0)
+)
+print("Lesen álló játékosok detektálása és megjelenítése befejeződött!")
 
 # Színes négyzetek annotálása
 annotated_frames = tracker.coloured_squares_annotations(annotated_frames)

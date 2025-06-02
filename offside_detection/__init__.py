@@ -1,0 +1,1 @@
+from .offside_detection import OffsideDetector
