@@ -56,6 +56,8 @@ def draw_football_pitch(ax):
     ax.set_xlim(0, pitch_length)
     ax.set_ylim(0, pitch_width)
     ax.set_aspect('equal')
+    ax.set_xticks([])
+    ax.set_yticks([])
 
 
 # Hőtérkép generálása játékosokra

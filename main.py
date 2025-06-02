@@ -2,7 +2,7 @@ from utils import load_video, generate_output_video, get_majority_team_sides, cl
 from tracker import Tracker
 from pitch_config import process_keypoint_annotations
 from ultralytics import YOLO
-from heatmaps import generate_player_heatmaps
+from heatmaps import generate_player_heatmaps, generate_ball_heatmap
 from ball_possession import BallPossession
 from passing_measurement import PassCounter
 from player_positions_per_frame import plot_players_per_half_graph
@@ -183,6 +183,7 @@ print("Játékos aktivitási statisztikák generálása befejeződött!")
 
 # Hőtérképek generálása
 generate_player_heatmaps(keypoint_data.get("player_coordinates", []))
+generate_ball_heatmap(keypoint_data.get("ball_coordinates", []))
 print("Hőtérképek elmentve a heatmaps mappába!")
 
 # Output videó generálása
