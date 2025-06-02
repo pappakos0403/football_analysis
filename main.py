@@ -6,6 +6,7 @@ from heatmaps import generate_player_heatmaps
 from ball_possession import BallPossession
 from passing_measurement import PassCounter
 from player_positions_per_frame import plot_players_per_half_graph
+from player_activity import generate_player_activity_summary
 import os
 import pickle
 
@@ -151,6 +152,14 @@ plot_players_per_half_graph(
     fps=fps
 )
 print("Játékos pozíciók térfélenkénti grafikonja elmentve a player_positions_graph mappába!")
+
+# Játékos aktivitási statisztikák generálása
+generate_player_activity_summary(
+    player_coordinates_list=keypoint_data["player_coordinates"],
+    speed_estimator=tracker.speed_estimator,
+    tracker=tracker
+)
+print("Játékos aktivitási statisztikák generálása befejeződött!")
 
 # Hőtérképek generálása
 generate_player_heatmaps(keypoint_data.get("player_coordinates", []))

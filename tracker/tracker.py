@@ -295,7 +295,8 @@ class Tracker:
                         #cv2.putText(annotated_frame, text, (x_center - 70, y_bottom + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
 
                         # Sebesség és távolság mérése
-                        self.speed_estimator.add_measurement(track_id, coords[track_id], frame_num)
+                        team_id = self.track_id_to_team.get(track_id, None)
+                        self.speed_estimator.add_measurement(track_id, coords[track_id], frame_num, team_id)
                         speed_kmh, distance_m = self.speed_estimator.get_player_info(track_id)
 
                         # Sebesség és távolság kiírása

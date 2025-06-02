@@ -12,7 +12,7 @@ class SpeedAndDistanceEstimator:
         # Játékosok adatainak tárolása: track_id -> pozíciók, időbélyegek, teljes megtett távolság, sebességek, simított sebesség
         self.player_data = {}
 
-    def add_measurement(self, track_id, position_m, frame_num):
+    def add_measurement(self, track_id, position_m, frame_num, team_id=None):
         # Időbélyeg kiszámítása a képkocka sorszám és az fps alapján
         timestamp = frame_num / self.fps
 
@@ -24,6 +24,7 @@ class SpeedAndDistanceEstimator:
                 'total_distance': 0.0,
                 'speeds': [],
                 'smoothed_speed': 0.0,
+                'team_id': team_id
             }
 
         # Az aktuális játékos adatai
@@ -72,6 +73,11 @@ class SpeedAndDistanceEstimator:
             player_info['smoothed_speed'] = np.mean(window)
         elif player_info['speeds']:
             player_info['smoothed_speed'] = np.mean(player_info['speeds'])
+
+        # Simított sebességek gyűjtése a listába
+        if 'smoothed_list' not in player_info:
+            player_info['smoothed_list'] = []
+        player_info['smoothed_list'].append(player_info['smoothed_speed'])
 
     def get_player_speed_kmh(self, track_id):
         # A játékos aktuális simított sebessége km/h-ban visszaadva
