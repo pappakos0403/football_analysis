@@ -5,6 +5,7 @@ from ultralytics import YOLO
 from heatmaps import generate_player_heatmaps
 from ball_possession import BallPossession
 from passing_measurement import PassCounter
+from player_positions_per_frame import plot_players_per_half_graph
 import os
 import pickle
 
@@ -72,7 +73,7 @@ else:
         video_path,
         keypoint_model_path,
         players_tracks=tracks["players"],
-        ball_tracks=tracks["ball"],
+        ball_tracks=tracks["ball"]
     )
     print("Kulcspontok detektálva, játékoskoordináták és labdakoordináták kiszámítva!")
 
@@ -140,6 +141,17 @@ print("Passzok számítása és annotálása befejeződött!")
 annotated_frames = tracker.coloured_squares_annotations(annotated_frames)
 print("Csapatok színével ellátott négyzetek annotálása befejeződött!")
 
+# Játékos pozíciók térfélenkénti grafikonjának generálása
+plot_players_per_half_graph(
+    player_coordinates_list=keypoint_data["player_coordinates"],
+    track_id_to_team=tracker.track_id_to_team,
+    field_sides=field_sides,
+    team1_color=tracker.team1_color,
+    team2_color=tracker.team2_color,
+    fps=fps
+)
+print("Játékos pozíciók térfélenkénti grafikonja elmentve a player_positions_graph mappába!")
+
 # Hőtérképek generálása
 generate_player_heatmaps(keypoint_data.get("player_coordinates", []))
 print("Hőtérképek elmentve a heatmaps mappába!")
@@ -148,9 +160,11 @@ print("Hőtérképek elmentve a heatmaps mappába!")
 generate_output_video(annotated_frames, output_video_path, fps, width, height)
 print("Kimeneti videó mentve:", output_video_path)
 
-print("Kapus ID-k:", tracker.goalkeeper_ids)
+#print("Kapus ID-k:", tracker.goalkeeper_ids)
 
 # Legközelebbi játékosok szótár kiírása
+"""
 print("Legközelebbi játékosok szótár:")
 for frame_num, (player_id, team_id) in closest_player_ids_filtered.items():
     print(f"Frame {frame_num}: Játékos ID: {player_id} Team ID: {team_id}")
+"""

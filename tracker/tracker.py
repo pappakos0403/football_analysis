@@ -291,7 +291,7 @@ class Tracker:
                         x1,y1,x2,y2 = player["bbox"]
                         x_center = int((x1 + x2) / 2)
                         y_bottom = int(y2)
-                        text = f"x: {coords[track_id][0]:.1f}m y: {coords[track_id][1]:.1f}m"
+                        #text = f"x: {coords[track_id][0]:.1f}m y: {coords[track_id][1]:.1f}m"
                         #cv2.putText(annotated_frame, text, (x_center - 70, y_bottom + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
 
                         # Sebesség és távolság mérése
