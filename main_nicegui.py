@@ -21,6 +21,13 @@ def save_uploaded_video(e: events.UploadEventArguments):
         f.write(e.content.read())
     ui.notify(f"Videó feltöltve: {e.name}")
 
+# Adott videófájl törlése gombnyomásra
+def delete_video_file(file_path: Path):
+    if file_path.exists():
+        file_path.unlink()
+        ui.notify(f"Törölve: {file_path.name}")
+        # Oldal frissítése a törlés után
+        ui.navigate.to('/uploaded_videos')
 
 # ---------------
 # --- OLDALAK ---
@@ -73,6 +80,9 @@ def uploaded_videos_page():
                         ui.video(f'/videos/{video_file.name}').props('controls').classes("w-64 h-36 rounded shadow")
                         # Videók címei
                         ui.label(video_file.name).classes("text-sm text-center text-white mt-2")
+                        # Videó törlése gomb
+                        ui.button(on_click=lambda f=video_file: delete_video_file(f))\
+                            .props('color="red" icon="delete"')
         # Visszalépés a menübe
         ui.button("Vissza a menübe", on_click=lambda: ui.navigate.to("/main_page")).classes("mt-4")
 
