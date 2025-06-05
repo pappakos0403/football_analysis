@@ -1,5 +1,10 @@
-from nicegui import ui, events, storage, app
+from nicegui import ui, events, app
 from pathlib import Path
+from main_restructured import run_analysis_pipeline
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import webbrowser
+import os
 
 # ----------------
 # --- VÁLTOZÓK ---
@@ -9,12 +14,32 @@ from pathlib import Path
 INPUT_DIR = Path("input_videos")
 INPUT_DIR.mkdir(exist_ok=True)
 
+# Elemzett videók könyvtára
+OUTPUT_DIR = Path("output_videos")
+OUTPUT_DIR.mkdir(exist_ok=True)
+
+# Aszinkron futtatáshoz szükséges executor
+executor = ThreadPoolExecutor()
+
+# Aszinkron függvény a videóelemzés futtatására háttérben
+async def run_in_thread(func):
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, func)
+
+# Aszinkron függvény a videóelemzés futtatására visszajelzéssel
+async def run_pipeline_with_feedback(video_path: str):
+    await run_in_thread(lambda: run_analysis_pipeline(video_path))
+    ui.notify("Elemzés befejeződött!")
+
 # Kiválasztott videó tárolása
 selected_video = None
 
 # ----------------
 # --- FUNKCIÓK ---
 # ----------------
+
+def open_video_file(path):
+    webbrowser.open(f'file://{os.path.abspath(path)}')
 
 # Videó feltöltése és mentése a megadott könyvtárba
 def save_uploaded_video(e: events.UploadEventArguments):
@@ -24,13 +49,22 @@ def save_uploaded_video(e: events.UploadEventArguments):
         f.write(e.content.read())
     ui.notify(f"Videó feltöltve: {e.name}")
 
-# Adott videófájl törlése gombnyomásra
+# Adott videófájl törlése gombnyomásra (feltöltött videók)
 def delete_video_file(file_path: Path):
     if file_path.exists():
         file_path.unlink()
         ui.notify(f"Törölve: {file_path.name}")
         # Oldal frissítése a törlés után
         ui.navigate.to('/uploaded_videos')
+
+# Adott elemzett videófájl törlése gombnyomásra
+def delete_analyzed_video_file(file_path: Path):
+    try:
+        file_path.unlink()
+        ui.notify(f"Elemzett videó törölve: {file_path.name}")
+        ui.navigate.to('/analyzed_videos')
+    except PermissionError:
+        ui.notify("Nem lehet törölni a fájlt, mert még meg van nyitva!", type='warning')
 
 # Videó kiválasztása
 def select_video_for_analysis(video_file: Path):
@@ -50,9 +84,9 @@ def start_page():
         # Kezdőlap címe
         ui.label("Futballanalízis Alkalmazás").classes("text-3xl font-bold")
         # Indítás gomb -> teszt oldalra navigál
-        ui.button("Indítás", on_click=lambda: ui.navigate.to("/main_page")).classes("mt-4")
+        ui.button("Indítás", on_click=lambda: ui.navigate.to("/main_page")).classes("w-48 text-lg")
         # Kilépés gomb -> alkalmazás leállítása
-        ui.button("Kilépés", on_click=app.shutdown).classes("mt-4")
+        ui.button("Kilépés", on_click=app.shutdown).classes("w-48 text-lg")
 
 # --- Feltöltött videók oldala ("/uploaded_videos") ---
 @ui.page("/uploaded_videos")
@@ -77,6 +111,25 @@ def uploaded_videos_page():
                             .props('color="red" icon="delete"')
         # Visszalépés a menübe
         ui.button("Vissza a menübe", on_click=lambda: ui.navigate.to("/main_page")).classes("mt-4")
+
+# --- Elemzett videók oldala ("/analyzed_videos") ---
+@ui.page("/analyzed_videos")
+def analyzed_videos_page():
+    with ui.column().classes("absolute-center items-center gap-4"):
+        # Elemzett videók oldalának címe
+        ui.label("Elemzett videók").classes("text-2xl font-semibold")
+        video_files = list(OUTPUT_DIR.glob("*.avi")) + list(OUTPUT_DIR.glob("*.mp4")) + list(OUTPUT_DIR.glob("*.mkv"))
+        if not video_files:
+            ui.label("Az elemzett videók mappája üres!").classes("text-white")
+        else:
+            with ui.row().classes("justify-center items-start flex-wrap gap-8"):
+                for video_file in video_files:
+                    with ui.column().classes("items-center"):
+                        ui.label(video_file.name).classes("text-sm text-center text-white mt-2")
+                        ui.button("Videó megnyitása", on_click=lambda f=video_file: open_video_file(f))
+                        ui.button(on_click=lambda f=video_file: delete_analyzed_video_file(f))\
+                            .props('color="red" icon="delete"')
+        ui.button("Vissza", on_click=lambda: ui.navigate.to("/analysis_config")).classes("mt-4")
 
 # --- Videó kiválasztása elemzéshez ("/select_video_for_analysis") ---
 @ui.page("/select_video_for_analysis")
@@ -122,12 +175,16 @@ def analysis_config_page():
         
         # Videó kiválasztása gomb
         ui.button("Videó kiválasztása", 
-                 on_click=lambda: ui.navigate.to("/select_video_for_analysis")).classes("mt-4")
+                 on_click=lambda: ui.navigate.to("/select_video_for_analysis")).classes("w-48 text-lg")
         
         # Elemzés indítása gomb (csak ha van kiválasztott videó)
         if selected_video:
             ui.button("Elemzés indítása", 
-                     on_click=lambda: ui.notify("Az elemzés funkció még fejlesztés alatt áll!")).classes("mt-4")
+                     on_click=lambda: run_pipeline_with_feedback(str(selected_video))).classes("w-48 text-lg mt-2")
+        
+        # Elemzett videók gomb
+        ui.button("Elemzett videók", 
+                 on_click=lambda: ui.navigate.to("/analyzed_videos")).classes("w-48 text-lg mt-2")
             
         # Vissza a menübe gomb -> visszalépés a főoldalra
         ui.button("Vissza a menübe", on_click=lambda: ui.navigate.to("/main_page")).classes("mt-4")
@@ -139,7 +196,7 @@ def select_video_page():
         # Videó kiválasztása oldal címe
         ui.label("Videó kiválasztása").classes("text-2xl font-semibold")
         # Videó kiválasztása gomb --> videó kiválasztása oldalra navigál
-        ui.button("Videó kiválasztása", on_click=lambda: ui.navigate.to("/analysis_config")).classes("mt-4")
+        ui.button("Videó kiválasztása", on_click=lambda: ui.navigate.to("/analysis_config")).classes("w-48 text-lg")
         # Vissza az elemzés konfigurációs oldalra --> elemzés konfigurációs oldalra navigál
         ui.button("Vissza", on_click=lambda: ui.navigate.to("/main_page")).classes("mt-4")
 
@@ -165,4 +222,5 @@ def main_page():
 
 # --- GUI indítása natív módban, teljes képernyőn ---
 app.add_static_files('/videos', INPUT_DIR)
+app.add_static_files('/analyzed_videos', OUTPUT_DIR)
 ui.run(native=True, fullscreen=True, title="Futballanalízis", dark=True)

@@ -1,4 +1,6 @@
 import cv2
+import subprocess
+import os
 
 # Input videó beolvasása
 def load_video(path):
@@ -20,7 +22,7 @@ def load_video(path):
 
 # Output videó generálása
 def generate_output_video(output_video_frames, output_video_path, video_fps, video_width, video_height):
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = cv2.VideoWriter(output_video_path, fourcc, video_fps, (video_width, video_height))
     for frame in output_video_frames:
         out.write(frame)
