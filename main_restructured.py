@@ -1,7 +1,7 @@
 import os
 import pickle
 import numpy as np
-from utils import load_video, generate_output_video, get_majority_team_sides, closest_player_ids_filter
+from utils import load_video, generate_output_video, get_majority_team_sides, closest_player_ids_filter, save_video_thumbnail
 from tracker import Tracker
 from pitch_config import process_keypoint_annotations
 from heatmaps import generate_player_heatmaps, generate_ball_heatmap
@@ -15,9 +15,10 @@ from offside_detection import OffsideDetector
 def run_analysis_pipeline(video_path: str):
     # --- Elnevezések ---
     filename = os.path.basename(video_path)
-    output_filename = f"annotated_{os.path.splitext(filename)[0]}.mp4"
-    stub_path = f"stubs/{os.path.splitext(filename)[0]}.pkl"
-    output_video_path = f"output_videos/{output_filename}"
+    video_stem = os.path.splitext(filename)[0]
+    output_video_dir = f"output_videos/annotated_{video_stem}"
+    output_video_path = f"{output_video_dir}/annotated_{video_stem}.mp4"
+    stub_path = f"stubs/{video_stem}.pkl"
     model_path = "models/best.pt"
     keypoint_model_path = "models/best_keypoints.pt"
 
@@ -121,6 +122,13 @@ def run_analysis_pipeline(video_path: str):
     generate_player_heatmaps(keypoint_data["player_coordinates"])
     generate_ball_heatmap(keypoint_data["ball_coordinates"])
 
+    # Mappa létrehozása
+    os.makedirs(output_video_dir, exist_ok=True)
+
     generate_output_video(annotated_frames, output_video_path, fps, width, height)
     print(f"Kimeneti videó mentve: {output_video_path}")
+
+    # Thumbnail mentése
+    save_video_thumbnail(video_path, output_video_path)
+    
     return output_video_path

@@ -3,3 +3,4 @@ from .bbox_utils import get_center_of_bbox, get_bbox_width
 from .team_assigner_utils import TeamAssigner
 from .field_sign_assigner import determine_team_sides, get_majority_team_sides
 from .closest_player_ids_utils import closest_player_ids_filter
+from .thumbnail_utils import save_video_thumbnail

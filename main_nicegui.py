@@ -3,7 +3,7 @@ from pathlib import Path
 from main_restructured import run_analysis_pipeline
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-import webbrowser
+import shutil
 import os
 
 # ----------------
@@ -20,6 +20,8 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 
 # Kiválasztott videó tárolása
 selected_video = None
+# Kiválasztott elemzett videó tárolása
+selected_analyzed_video = None
 
 # Aszinkron futtatáshoz szükséges executor
 executor = ThreadPoolExecutor()
@@ -47,7 +49,10 @@ async def run_pipeline_with_feedback(video_path: str, loader_dialog, container_t
     ui.navigate.to('/analyzed_videos')
 
 def open_video_file(path):
-    webbrowser.open(f'file://{os.path.abspath(path)}')
+    try:
+        os.startfile(Path(path).resolve())
+    except Exception as e:
+        ui.notify(f"Hiba a videó megnyitásakor: {e}", color="red")
 
 # Videó feltöltése és mentése a megadott könyvtárba
 def save_uploaded_video(e: events.UploadEventArguments):
@@ -65,14 +70,22 @@ def delete_video_file(file_path: Path):
         # Oldal frissítése a törlés után
         ui.navigate.to('/uploaded_videos')
 
-# Adott elemzett videófájl törlése gombnyomásra
-def delete_analyzed_video_file(file_path: Path):
+# Adott elemzett videófájl részleteinek megjelenítése gombnyomásra
+def show_analyzed_video_details(video_file: Path):
+    global selected_analyzed_video
+    selected_analyzed_video = video_file
+    ui.navigate.to('/analyzed_video_detail')
+
+# Adott elemzett videófájlhoz tartozó mappa törlése gombnyomásra
+def delete_analyzed_video_file(video_path: Path):
     try:
-        file_path.unlink()
-        ui.notify(f"Elemzett videó törölve: {file_path.name}")
+        # Az elemzett videó mappájának törlése
+        folder_path = video_path.parent
+        shutil.rmtree(folder_path)
+        ui.notify(f"Törölve: {folder_path.name}")
         ui.navigate.to('/analyzed_videos')
-    except PermissionError:
-        ui.notify("Nem lehet törölni a fájlt, mert még meg van nyitva!", type='warning')
+    except Exception as e:
+        ui.notify(f"A fájlt nem lehet törölni, mert még használatban van!", color='orange')
 
 # Videó kiválasztása
 def select_video_for_analysis(video_file: Path):
@@ -124,24 +137,45 @@ def uploaded_videos_page():
 @ui.page("/analyzed_videos")
 def analyzed_videos_page():
     with ui.column().classes("absolute-center items-center gap-4"):
-        # Elemzett videók oldalának címe
         ui.label("Elemzett videók").classes("text-2xl font-semibold")
-        video_files = list(OUTPUT_DIR.glob("*.avi")) + list(OUTPUT_DIR.glob("*.mp4")) + list(OUTPUT_DIR.glob("*.mkv"))
-        if not video_files:
+        video_dirs = [p for p in OUTPUT_DIR.iterdir() if p.is_dir() and p.name.startswith("annotated_")]
+
+        if not video_dirs:
             ui.label("Az elemzett videók mappája üres!").classes("text-white")
         else:
-            with ui.row().classes("justify-center items-start flex-wrap gap-8"):
-                for video_file in video_files:
-                    with ui.column().classes("items-center"):
-                        # Videó thumbnail + címe
-                        ui.label(video_file.name).classes("text-sm text-center text-white mt-2")
-                        # Elemzett videó megnyitása gomb
-                        ui.button("Videó megnyitása", on_click=lambda f=video_file: open_video_file(f))
-                        # Elemzett videó törlése gomb
-                        ui.button(on_click=lambda f=video_file: delete_analyzed_video_file(f))\
-                            .props('color="red" icon="delete"')
-        # Vissza gomb --> elemzés konfigurációs oldalra navigál
-        ui.button("Vissza", on_click=lambda: ui.navigate.to("/analysis_config")).classes("mt-4")
+            with ui.row().classes("justify-center flex-wrap gap-8"):
+                for video_dir in video_dirs:
+                    video_name = video_dir.name.replace("annotated_", "")
+                    video_path = video_dir / f"annotated_{video_name}.mp4"
+                    with ui.column().classes("items-center cursor-pointer").on("click", lambda f=video_path: show_analyzed_video_details(f)):
+                        ui.icon("folder").classes("text-yellow-400 text-6xl")
+                        ui.label(video_name + ".mp4").classes("text-sm text-center text-white mt-2 max-w-48 truncate")
+
+        ui.button("Vissza", on_click=lambda: ui.navigate.to("/main_page")).classes("mt-4")
+
+@ui.page("/analyzed_video_detail")
+def analyzed_video_detail_page():
+ 
+    with ui.column().classes("absolute-center items-center gap-4"):
+        # Statikus előnézet
+        ui.label("Elemzett videó részletei").classes("text-2xl font-semibold")
+
+        # Elemzett videó thumbnailjének megjelenítése
+        thumbnail_path = f"/analyzed_videos/{selected_analyzed_video.parent.name}/thumbnail/thumbnail.jpg"
+        ui.image(thumbnail_path).classes("w-96 h-56 rounded shadow object-cover")
+
+        # Elemzett videó neve
+        ui.label(selected_analyzed_video.name).classes("text-white text-center")
+
+        # Gombok
+        with ui.column().classes("gap-2 w-64"):
+            ui.button("Videó megnyitása", on_click=lambda: open_video_file(selected_analyzed_video)).classes("w-full")
+            # ui.button("Statisztikák").classes("w-full")
+            # ui.button("Hőtérkép").classes("w-full")
+            # ui.button("Grafikonok").classes("w-full")
+            ui.button("Törlés", on_click=lambda: delete_analyzed_video_file(selected_analyzed_video)).props('color="red" icon="delete"').classes("w-full")
+
+        ui.button("Vissza az elemzett videókhoz", on_click=lambda: ui.navigate.to("/analyzed_videos")).classes("mt-6")
 
 # --- Videó kiválasztása elemzéshez ("/select_video_for_analysis") ---
 @ui.page("/select_video_for_analysis")
@@ -202,13 +236,9 @@ def analysis_config_page():
         if selected_video:
             ui.button("Elemzés indítása", 
                      on_click=lambda: run_pipeline_with_feedback(str(selected_video), loader_dialog, page_container)).classes("w-48 text-lg mt-2")
-        
-        # Elemzett videók gomb
-        ui.button("Elemzett videók", 
-                 on_click=lambda: ui.navigate.to("/analyzed_videos")).classes("w-48 text-lg mt-2")
             
         # Vissza a menübe gomb -> visszalépés a főoldalra
-        ui.button("Vissza a menübe", on_click=lambda: ui.navigate.to("/main_page")).classes("mt-4")
+        ui.button("Vissza", on_click=lambda: ui.navigate.to("/main_page")).classes("mt-4")
 
 # --- Elemezni kívánt videó kiválasztása oldal ---
 @ui.page("/select_video")
@@ -238,6 +268,8 @@ def main_page():
         ui.button("Feltöltött videók", on_click=lambda: ui.navigate.to("/uploaded_videos")).classes("mt-4")
         # Elemzés konfigurációs oldal -> elemzés konfigurációs oldalra navigál
         ui.button("Videóelemzés", on_click=lambda: ui.navigate.to("/analysis_config")).classes("mt-4")
+        # Elemzett videók -> elemzett videók oldalára navigál
+        ui.button("Elemzett videók", on_click=lambda: ui.navigate.to("/analyzed_videos")).classes("mt-4")
         # Vissza a kezdőlapra gomb -> kezdőlapra navigál
         ui.button("Vissza a kezdőlapra", on_click=lambda: ui.navigate.to("/")).classes("mt-4")
 
