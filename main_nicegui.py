@@ -18,8 +18,15 @@ INPUT_DIR.mkdir(exist_ok=True)
 OUTPUT_DIR = Path("output_videos")
 OUTPUT_DIR.mkdir(exist_ok=True)
 
+# Kiválasztott videó tárolása
+selected_video = None
+
 # Aszinkron futtatáshoz szükséges executor
 executor = ThreadPoolExecutor()
+
+# ----------------
+# --- FUNKCIÓK ---
+# ----------------
 
 # Aszinkron függvény a videóelemzés futtatására háttérben
 async def run_in_thread(func):
@@ -27,16 +34,17 @@ async def run_in_thread(func):
     return await loop.run_in_executor(executor, func)
 
 # Aszinkron függvény a videóelemzés futtatására visszajelzéssel
-async def run_pipeline_with_feedback(video_path: str):
+async def run_pipeline_with_feedback(video_path: str, loader_dialog, container_to_hide):
+    # Töltőképernyő mögötti konténer elrejtése
+    container_to_hide.set_visibility(False)
+    # Töltőképernyő megnyitása
+    loader_dialog.open()
+    # Elemzés futtatása a háttérben
     await run_in_thread(lambda: run_analysis_pipeline(video_path))
+    # Töltőképernyő bezárása
+    loader_dialog.close()
     ui.notify("Elemzés befejeződött!")
-
-# Kiválasztott videó tárolása
-selected_video = None
-
-# ----------------
-# --- FUNKCIÓK ---
-# ----------------
+    ui.navigate.to('/analyzed_videos')
 
 def open_video_file(path):
     webbrowser.open(f'file://{os.path.abspath(path)}')
@@ -125,10 +133,14 @@ def analyzed_videos_page():
             with ui.row().classes("justify-center items-start flex-wrap gap-8"):
                 for video_file in video_files:
                     with ui.column().classes("items-center"):
+                        # Videó thumbnail + címe
                         ui.label(video_file.name).classes("text-sm text-center text-white mt-2")
+                        # Elemzett videó megnyitása gomb
                         ui.button("Videó megnyitása", on_click=lambda f=video_file: open_video_file(f))
+                        # Elemzett videó törlése gomb
                         ui.button(on_click=lambda f=video_file: delete_analyzed_video_file(f))\
                             .props('color="red" icon="delete"')
+        # Vissza gomb --> elemzés konfigurációs oldalra navigál
         ui.button("Vissza", on_click=lambda: ui.navigate.to("/analysis_config")).classes("mt-4")
 
 # --- Videó kiválasztása elemzéshez ("/select_video_for_analysis") ---
@@ -143,6 +155,7 @@ def select_video_for_analysis_page():
         video_files = list(INPUT_DIR.glob("*.mp4")) + list(INPUT_DIR.glob("*.avi")) + list(INPUT_DIR.glob("*.mkv"))
         if not video_files:
             ui.label("Nincs feltöltött videó! Először töltsön fel videókat.").classes("text-orange-400 text-center")
+            # Videó feltöltése gomb
             ui.button("Videó feltöltése", on_click=lambda: ui.navigate.to("/main_page")).classes("mt-4")
         else:
             with ui.row().classes("justify-center items-start flex-wrap gap-8 max-w-4xl"):
@@ -163,7 +176,9 @@ def select_video_for_analysis_page():
 # --- Elemzés konfigurációs oldal ("/analysis_config") ---
 @ui.page("/analysis_config")
 def analysis_config_page():
-    with ui.column().classes("absolute-center items-center gap-4"):
+    page_container = ui.column().classes("absolute-center items-center gap-4")
+
+    with page_container:
         # Elemzés konfigurációs oldal címe
         ui.label("Videó elemzése").classes("text-2xl font-semibold")
         
@@ -177,10 +192,16 @@ def analysis_config_page():
         ui.button("Videó kiválasztása", 
                  on_click=lambda: ui.navigate.to("/select_video_for_analysis")).classes("w-48 text-lg")
         
+        # Töltőképernyő dialógus létrehozása
+        loader_dialog = ui.dialog().classes("bg-transparent")
+        with loader_dialog:
+            ui.spinner(size="lg", color="primary")
+            ui.label("Elemzés folyamatban...").classes("text-white text-lg mt-2")
+        
         # Elemzés indítása gomb (csak ha van kiválasztott videó)
         if selected_video:
             ui.button("Elemzés indítása", 
-                     on_click=lambda: run_pipeline_with_feedback(str(selected_video))).classes("w-48 text-lg mt-2")
+                     on_click=lambda: run_pipeline_with_feedback(str(selected_video), loader_dialog, page_container)).classes("w-48 text-lg mt-2")
         
         # Elemzett videók gomb
         ui.button("Elemzett videók", 
