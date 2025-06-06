@@ -22,6 +22,8 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 selected_video = None
 # Kiválasztott elemzett videó tárolása
 selected_analyzed_video = None
+# Log terület a visszajelzésekhez
+ui_log_area = None
 
 # Aszinkron futtatáshoz szükséges executor
 executor = ThreadPoolExecutor()
@@ -39,6 +41,9 @@ async def run_in_thread(func):
 async def run_pipeline_with_feedback(video_path: str, loader_dialog, container_to_hide):
     # Töltőképernyő mögötti konténer elrejtése
     container_to_hide.set_visibility(False)
+    # Log terület törlése az elemzés kezdetekor
+    if ui_log_area:
+        ui_log_area.value = ""
     # Töltőképernyő megnyitása
     loader_dialog.open()
     # Elemzés futtatása a háttérben
@@ -47,6 +52,16 @@ async def run_pipeline_with_feedback(video_path: str, loader_dialog, container_t
     loader_dialog.close()
     ui.notify("Elemzés befejeződött!")
     ui.navigate.to('/analyzed_videos')
+
+# Log üzenetek megjelenítése a GUI-ban
+def gui_log(msg: str):
+    global ui_log_area
+    print(msg)  # konzolra továbbra is megy
+    if ui_log_area:
+        def update():
+            ui_log_area.value += f"{msg}\n"
+            ui_log_area.run_method('scrollTop', ui_log_area.element.scrollHeight)
+        ui.run_later(update)  # 👈 GUI frissítés fő szálon
 
 def open_video_file(path):
     try:
@@ -210,6 +225,8 @@ def select_video_for_analysis_page():
 # --- Elemzés konfigurációs oldal ("/analysis_config") ---
 @ui.page("/analysis_config")
 def analysis_config_page():
+    global ui_log_area
+    
     page_container = ui.column().classes("absolute-center items-center gap-4")
 
     with page_container:
@@ -229,13 +246,20 @@ def analysis_config_page():
         # Töltőképernyő dialógus létrehozása
         loader_dialog = ui.dialog().classes("bg-transparent")
         with loader_dialog:
-            ui.spinner(size="lg", color="primary")
-            ui.label("Elemzés folyamatban...").classes("text-white text-lg mt-2")
+            with ui.column().classes("items-center gap-4"):
+                ui.spinner(size="lg", color="primary")
+                ui.label("Elemzés folyamatban...").classes("text-white text-lg text-center")
+                
+                # Folyamatnapló terület a töltőképernyőn
+                ui_log_area = ui.textarea(label="Folyamatnapló") \
+                    .classes("w-96 h-48 bg-black text-white text-xs p-2") \
+                    .props("filled readonly dense")
         
         # Elemzés indítása gomb (csak ha van kiválasztott videó)
         if selected_video:
             ui.button("Elemzés indítása", 
-                     on_click=lambda: run_pipeline_with_feedback(str(selected_video), loader_dialog, page_container)).classes("w-48 text-lg mt-2")
+                     on_click=lambda: run_pipeline_with_feedback(str(selected_video), loader_dialog, page_container)
+                     ).classes("w-48 text-lg mt-2")
             
         # Vissza a menübe gomb -> visszalépés a főoldalra
         ui.button("Vissza", on_click=lambda: ui.navigate.to("/main_page")).classes("mt-4")

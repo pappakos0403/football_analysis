@@ -11,6 +11,10 @@ from player_positions_per_frame import plot_players_per_half_graph
 from player_activity import generate_player_activity_summary
 from offside_detection import OffsideDetector
 
+try:
+    from main_nicegui import gui_log
+except ImportError:
+    def gui_log(msg): print(msg)
 
 def run_analysis_pipeline(video_path: str):
     # --- Elnevezések ---
@@ -22,7 +26,9 @@ def run_analysis_pipeline(video_path: str):
     model_path = "models/best.pt"
     keypoint_model_path = "models/best_keypoints.pt"
 
-    # --- Videó betöltése ---
+    os.makedirs(output_video_dir, exist_ok=True)
+
+    gui_log("\n[1] Videó betöltése...")
     frames, fps, width, height = load_video(video_path)
     tracker = Tracker(model_path=model_path, video_fps=fps)
 
@@ -41,10 +47,12 @@ def run_analysis_pipeline(video_path: str):
                     "player_coordinates": stub_data["player_coordinates"],
                     "ball_coordinates": stub_data["ball_coordinates"]
                 }
+                gui_log("[2] Stub fájl betöltve.")
         except:
-            print("Hiba a stub betöltésekor!")
+            gui_log("[2] Hiba a stub betöltésekor!")
 
     if tracks is None or keypoint_data is None:
+        gui_log("[3] Tracker detektálás és keypoint annotáció indul...")
         tracks = tracker.detect_video(frames, read_from_stub=False, stub_path=None)
         keypoint_data = process_keypoint_annotations(video_path, keypoint_model_path, tracks["players"], tracks["ball"])
         os.makedirs(os.path.dirname(stub_path), exist_ok=True)
@@ -56,8 +64,9 @@ def run_analysis_pipeline(video_path: str):
                 "player_coordinates": keypoint_data["player_coordinates"],
                 "ball_coordinates": keypoint_data["ball_coordinates"]
             }, f)
+        gui_log("[4] Detektálás és annotáció elvégezve, stub mentve.")
 
-    # --- Annotálás ---
+    gui_log("[5] Annotált frame-ek készítése...")
     annotated_frames = tracker.annotations(
         frames, tracks,
         keypoints_list=keypoint_data["keypoints"],
@@ -65,6 +74,7 @@ def run_analysis_pipeline(video_path: str):
         ball_coordinates_list=keypoint_data["ball_coordinates"]
     )
 
+    gui_log("[6] Térfél meghatározás...")
     field_sides = get_majority_team_sides(
         player_coordinates=keypoint_data["player_coordinates"],
         players_tracks=tracks["players"],
@@ -74,11 +84,12 @@ def run_analysis_pipeline(video_path: str):
         team_assigner=tracker.teamAssigner
     )
 
+    gui_log("[7] Kapus annotáció és közeli játékosok számítása...")
     annotated_frames = tracker.goalkeeper_annotations(annotated_frames, tracks, frames, keypoint_data["player_coordinates"], field_sides)
-
     closest_player_ids_filtered = closest_player_ids_filter(tracker.closest_player_ids)
     annotated_frames = tracker.draw_closest_players_triangles(annotated_frames, closest_player_ids_filtered, tracks)
 
+    gui_log("[8] Labdabirtoklás és passz statisztikák számítása...")
     possession = BallPossession()
     annotated_frames = possession.measure_and_draw_possession(annotated_frames, closest_player_ids_filtered)
 
@@ -86,6 +97,7 @@ def run_analysis_pipeline(video_path: str):
     pass_counter.process_passes_per_frame(closest_player_ids_filtered, len(frames))
     annotated_frames = pass_counter.draw_pass_statistics(annotated_frames)
 
+    gui_log("[9] Lesek detektálása és zászlók kirajzolása...")
     offside_detector = OffsideDetector(
         player_coordinates=keypoint_data["player_coordinates"],
         ball_coordinates=keypoint_data["ball_coordinates"],
@@ -102,6 +114,7 @@ def run_analysis_pipeline(video_path: str):
         team2_color_rgb=tuple(np.array(tracker.team2_color) / 255.0)
     )
 
+    gui_log("[10] Egyéb grafikai annotációk...")
     annotated_frames = tracker.coloured_squares_annotations(annotated_frames)
 
     plot_players_per_half_graph(
@@ -122,13 +135,12 @@ def run_analysis_pipeline(video_path: str):
     generate_player_heatmaps(keypoint_data["player_coordinates"])
     generate_ball_heatmap(keypoint_data["ball_coordinates"])
 
-    # Mappa létrehozása
-    os.makedirs(output_video_dir, exist_ok=True)
-
+    gui_log("[11] Videó mentése folyamatban...")
     generate_output_video(annotated_frames, output_video_path, fps, width, height)
-    print(f"Kimeneti videó mentve: {output_video_path}")
+    gui_log(f"[11] Kimeneti videó mentve: {output_video_path}")
 
-    # Thumbnail mentése
+    gui_log("[12] Thumbnail generálása...")
     save_video_thumbnail(video_path, output_video_path)
-    
+    gui_log("[12] Thumbnail mentve.")
+
     return output_video_path
