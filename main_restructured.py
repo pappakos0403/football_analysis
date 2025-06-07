@@ -11,8 +11,9 @@ from player_positions_per_frame import plot_players_per_half_graph
 from player_activity import generate_player_activity_summary
 from offside_detection import OffsideDetector
 
+# Fő elemzési pipeline
 def run_analysis_pipeline(video_path: str, status_callback=None):
-    # --- Elnevezések ---
+    # Inicializálás
     filename = os.path.basename(video_path)
     video_stem = os.path.splitext(filename)[0]
     output_video_dir = f"output_videos/annotated_{video_stem}"
@@ -20,17 +21,18 @@ def run_analysis_pipeline(video_path: str, status_callback=None):
     stub_path = f"stubs/{video_stem}.pkl"
     model_path = "models/best.pt"
     keypoint_model_path = "models/best_keypoints.pt"
-
     os.makedirs(output_video_dir, exist_ok=True)
 
+    # Callback függvény a státusz üzenetekhez
     def update(msg):
         if status_callback:
             status_callback(msg)
 
+    # Videó betöltése
     frames, fps, width, height = load_video(video_path)
     tracker = Tracker(model_path=model_path, video_fps=fps)
 
-    # --- Stub betöltése vagy új számítás ---
+    # Stub betöltése vagy új generálása
     update("Stub fájl betöltése...")
     tracks = None
     keypoint_data = None
@@ -50,10 +52,21 @@ def run_analysis_pipeline(video_path: str, status_callback=None):
         except:
             update("Hiba történt a stub fájl betöltésekor, újraszámítás szükséges.")
 
+    # Új feldolgozás, ha nincs stub
     update("Stub fájl létrehozása...")
     if tracks is None or keypoint_data is None:
-        tracks = tracker.detect_video(frames, read_from_stub=False, stub_path=None)
-        keypoint_data = process_keypoint_annotations(video_path, keypoint_model_path, tracks["players"], tracks["ball"])
+        # Objektumdetektálás
+        tracks = tracker.detect_video(frames, 
+                                      read_from_stub=False, 
+                                      stub_path=None, 
+                                      status_callback=update)
+        # Kulcspontok és koordináták kiszámítása
+        keypoint_data = process_keypoint_annotations(video_path, 
+                                                     keypoint_model_path, 
+                                                     tracks["players"], 
+                                                     tracks["ball"], 
+                                                     status_callback=update)
+        # Stub mentése
         os.makedirs(os.path.dirname(stub_path), exist_ok=True)
         with open(stub_path, "wb") as f:
             pickle.dump({
@@ -63,8 +76,8 @@ def run_analysis_pipeline(video_path: str, status_callback=None):
                 "player_coordinates": keypoint_data["player_coordinates"],
                 "ball_coordinates": keypoint_data["ball_coordinates"]
             }, f)
-            update("Stub fájl létrehozva!")
 
+    # Annotálás
     update("Annotálás folyamatban...")
     annotated_frames = tracker.annotations(
         frames, tracks,
@@ -72,8 +85,8 @@ def run_analysis_pipeline(video_path: str, status_callback=None):
         player_coordinates_list=keypoint_data["player_coordinates"],
         ball_coordinates_list=keypoint_data["ball_coordinates"]
     )
-    update("Annotálás befejezve!")
 
+    # Térfél meghatározása
     update("Térfelek meghatározása...")
     field_sides = get_majority_team_sides(
         player_coordinates=keypoint_data["player_coordinates"],
@@ -83,25 +96,25 @@ def run_analysis_pipeline(video_path: str, status_callback=None):
         team2_color=tracker.team2_color,
         team_assigner=tracker.teamAssigner
     )
-    update("Térfelek meghatározva!")
 
+    # Kapusok annotálása
     update("Kapusok annotációja...")
     annotated_frames = tracker.goalkeeper_annotations(annotated_frames, tracks, frames, keypoint_data["player_coordinates"], field_sides)
     closest_player_ids_filtered = closest_player_ids_filter(tracker.closest_player_ids)
     annotated_frames = tracker.draw_closest_players_triangles(annotated_frames, closest_player_ids_filtered, tracks)
-    update("Kapusok annotációja befejezve!")
 
+    # Labdabirtoklás kiszámítása
     update("Labdabirtoklás számítása és annotálása...")
     possession = BallPossession()
     annotated_frames = possession.measure_and_draw_possession(annotated_frames, closest_player_ids_filtered)
-    update("Labdabirtoklás számítása annotálása befejezve!")
 
+    # Passzok számlálása
     update("Passzok számítása és annotálása...")
     pass_counter = PassCounter()
     pass_counter.process_passes_per_frame(closest_player_ids_filtered, len(frames))
     annotated_frames = pass_counter.draw_pass_statistics(annotated_frames)
-    update("Passzok számítása annotálása befejezve!")
 
+    # Lesen álló játékosok detektálása
     update("Lesek detektálása és annotálása...")
     offside_detector = OffsideDetector(
         player_coordinates=keypoint_data["player_coordinates"],
@@ -118,12 +131,12 @@ def run_analysis_pipeline(video_path: str, status_callback=None):
         team1_color_rgb=tuple(np.array(tracker.team1_color) / 255.0),
         team2_color_rgb=tuple(np.array(tracker.team2_color) / 255.0)
     )
-    update("Lesek detektálása annotálása befejezve!")
 
+    # Csapat színek megjelenítése
     update("Csapatok jelölése és színezése...")
     annotated_frames = tracker.coloured_squares_annotations(annotated_frames)
-    update("Csapatok jelölése színezése befejezve!")
 
+    # Játékosok száma térfelenként a megadott időintervallumokban grafikon elkészítése
     update("Grafikonok és statisztikák készítése...")
     plot_players_per_half_graph(
         player_coordinates_list=keypoint_data["player_coordinates"],
@@ -134,20 +147,20 @@ def run_analysis_pipeline(video_path: str, status_callback=None):
         fps=fps
     )
 
+    # Játékos aktivitási statisztikák generálása
     generate_player_activity_summary(
         player_coordinates_list=keypoint_data["player_coordinates"],
         speed_estimator=tracker.speed_estimator,
         tracker=tracker
     )
 
+    # Játékosok és labda hőtérképek generálása
     generate_player_heatmaps(keypoint_data["player_coordinates"])
     generate_ball_heatmap(keypoint_data["ball_coordinates"])
-    update("Grafikonok és statisztikák készítése befejezve!")
 
+    # Kimeneti videó mentése + előnézeti kép generálása
     update("Kimeneti videó generálása és thumbnail készítése...")
     generate_output_video(annotated_frames, output_video_path, fps, width, height)
-
     save_video_thumbnail(video_path, output_video_path)
-    update("Kimeneti videó és thumbnail készítése befejezve!")
 
     return output_video_path

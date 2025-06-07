@@ -4,7 +4,7 @@ from ultralytics import YOLO
 from pitch_config import FootballPitchConfiguration
 from .view_transformer import ViewTransformer
 
-def process_keypoint_annotations(video_path, keypoint_model_path, players_tracks=None, ball_tracks=None):
+def process_keypoint_annotations(video_path, keypoint_model_path, players_tracks=None, ball_tracks=None, status_callback=None):
     
     # Konfidencia határérték
     confidence_threshold = 0.5
@@ -36,6 +36,8 @@ def process_keypoint_annotations(video_path, keypoint_model_path, players_tracks
     
     while True:
         ret, fullhd_frame = cap.read()
+        if status_callback:
+            status_callback(f"Kulcspontok detektálása... (Frame {frame_count + 1}/{int(cap.get(cv2.CAP_PROP_FRAME_COUNT))})")
         if not ret:
             break
         

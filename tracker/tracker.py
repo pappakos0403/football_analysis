@@ -123,7 +123,7 @@ class Tracker:
 
         return interpolated_ball_positions
 
-    def detect_video(self, frames, read_from_stub=False, stub_path=None):
+    def detect_video(self, frames, read_from_stub=False, stub_path=None, status_callback=None):
 
         if read_from_stub and stub_path and os.path.exists(stub_path):
             with open(stub_path, "rb") as f:
@@ -131,8 +131,11 @@ class Tracker:
             return annotated_frames
         
         detections = []
+        total_frames = len(frames)
 
         for frame_num, frame in enumerate(frames):
+            if status_callback:
+                status_callback(f"Objektumdetektálás... (Frame {frame_num + 1}/{total_frames})")
             detection = self.model(frame)[0]
             detections.append(detection)
 
