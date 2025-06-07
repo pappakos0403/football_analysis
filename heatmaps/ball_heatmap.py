@@ -53,7 +53,7 @@ def draw_football_pitch(ax):
     ax.set_yticks([])
 
 
-def generate_ball_heatmap(ball_coordinates: list[tuple[float, float]], output_path="heatmaps/heatmap_images/ball_heatmap.png"):
+def generate_ball_heatmap(ball_coordinates: list[tuple[float, float]], output_path: str):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     # Koordináták kiszűrése, csak ahol nem None

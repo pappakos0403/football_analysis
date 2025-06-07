@@ -19,6 +19,7 @@ def run_analysis_pipeline(video_path: str, status_callback=None):
     output_video_dir = f"output_videos/annotated_{video_stem}"
     output_video_path = f"{output_video_dir}/annotated_{video_stem}.mp4"
     stub_path = f"stubs/{video_stem}.pkl"
+    heatmap_dir = os.path.join(output_video_dir, "heatmaps")
     model_path = "models/best.pt"
     keypoint_model_path = "models/best_keypoints.pt"
     os.makedirs(output_video_dir, exist_ok=True)
@@ -155,8 +156,8 @@ def run_analysis_pipeline(video_path: str, status_callback=None):
     )
 
     # Játékosok és labda hőtérképek generálása
-    generate_player_heatmaps(keypoint_data["player_coordinates"])
-    generate_ball_heatmap(keypoint_data["ball_coordinates"])
+    generate_player_heatmaps(keypoint_data["player_coordinates"], output_dir = heatmap_dir)
+    generate_ball_heatmap(keypoint_data["ball_coordinates"], output_path=os.path.join(heatmap_dir, "ball_heatmap.png"))
 
     # Kimeneti videó mentése + előnézeti kép generálása
     update("Kimeneti videó generálása és thumbnail készítése...")

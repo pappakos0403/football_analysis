@@ -61,7 +61,7 @@ def draw_football_pitch(ax):
 
 
 # Hőtérkép generálása játékosokra
-def generate_player_heatmaps(player_coordinates: list[dict], output_dir="heatmaps//heatmap_images", min_ratio=0.5):
+def generate_player_heatmaps(player_coordinates: list[dict], output_dir: str, min_ratio=0.5):
     os.makedirs(output_dir, exist_ok=True)
 
     # Játékos pozícióinak tárolása

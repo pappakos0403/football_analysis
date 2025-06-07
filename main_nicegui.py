@@ -171,12 +171,65 @@ def analyzed_video_detail_page():
         # Gombok
         with ui.column().classes("gap-2 w-64"):
             ui.button("Videó megnyitása", on_click=lambda: open_video_file(selected_analyzed_video)).classes("w-full")
-            # ui.button("Statisztikák").classes("w-full")
+            ui.button("Hőtérképek", on_click=lambda: ui.navigate.to("/heatmaps")).classes("w-full")
             # ui.button("Hőtérkép").classes("w-full")
             # ui.button("Grafikonok").classes("w-full")
             ui.button("Törlés", on_click=lambda: delete_analyzed_video_file(selected_analyzed_video)).props('color="red" icon="delete"').classes("w-full")
 
         ui.button("Vissza az elemzett videókhoz", on_click=lambda: ui.navigate.to("/analyzed_videos")).classes("mt-6")
+
+@ui.page("/heatmaps")
+def heatmaps_page():
+    with ui.column().classes("absolute-center items-center gap-4"):
+        # Oldal címe
+        ui.label("Hőtérképek").classes("text-2xl font-semibold")
+
+        # Hőtérképek mappa az elemzett videó alapján
+        heatmap_dir = selected_analyzed_video.parent / "heatmaps"
+        heatmap_files = sorted(list(heatmap_dir.glob("*.png")))
+
+        # Ha nincsenek képek
+        if not heatmap_files:
+            ui.label("Nem találhatóak hőtérképek ehhez az elemzett videóhoz.").classes("text-white")
+            return
+
+        # --- Dialógus a képek megjelenítéséhez ---
+        image_dialog = ui.dialog().props('maximized').classes("bg-black bg-opacity-90")
+        current_index = {"value": 0}
+
+        with image_dialog:
+            with ui.column().classes("items-center relative"):
+                # Bezáró ikon jobb felső sarokban
+                ui.button('X', on_click=image_dialog.close).props('flat').classes('absolute right-4 top-4 z-50 bg-red-600 text-white font-bold w-8 h-8 rounded flex items-center justify-center')
+
+                # Teljes kép
+                image_display = ui.image().classes("w-full max-w-screen-xl h-auto object-contain rounded shadow")
+
+                # Lapozás gombok vízszintesen
+                with ui.row().classes("justify-center items-center gap-8 mt-6"):
+                    ui.button("⬅️", on_click=lambda: show_image(current_index["value"] - 1)).classes("w-24")
+                    ui.button("➡️", on_click=lambda: show_image(current_index["value"] + 1)).classes("w-24")
+
+        # Kép megjelenítő függvény
+        def show_image(index: int):
+            if 0 <= index < len(heatmap_files):
+                current_index["value"] = index
+                rel_path = f"/analyzed_videos/{heatmap_files[index].relative_to('output_videos').as_posix()}"
+                image_display.set_source(rel_path)
+                image_dialog.open()
+
+        # --- Képkártyák megjelenítése előnézettel ---
+        with ui.row().classes("justify-center flex-wrap gap-4 max-w-screen-2xl"):
+            for idx, heatmap_path in enumerate(heatmap_files):
+                rel_path = f"/analyzed_videos/{heatmap_path.relative_to('output_videos').as_posix()}"
+                with ui.column().classes("items-center cursor-pointer"):
+                    with ui.card().classes("p-2 hover:bg-gray-700 transition-colors duration-200") \
+                            .on('click', lambda i=idx: show_image(i)):
+                        ui.image(rel_path).classes("w-40 h-28 rounded shadow object-cover")
+                        ui.label(heatmap_path.name).classes("text-xs text-white text-center mt-1 max-w-40 truncate")
+
+        # Vissza gomb
+        ui.button("Vissza", on_click=lambda: ui.navigate.to("/analyzed_video_detail")).classes("mt-6")
 
 # --- Videó kiválasztása elemzéshez ("/select_video_for_analysis") ---
 @ui.page("/select_video_for_analysis")
