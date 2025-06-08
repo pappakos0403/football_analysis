@@ -139,20 +139,24 @@ def run_analysis_pipeline(video_path: str, status_callback=None):
 
     # Játékosok száma térfelenként a megadott időintervallumokban grafikon elkészítése
     update("Grafikonok és statisztikák készítése...")
+    statistics_dir = os.path.join(output_video_dir, "statistics")
     plot_players_per_half_graph(
         player_coordinates_list=keypoint_data["player_coordinates"],
         track_id_to_team=tracker.track_id_to_team,
         field_sides=field_sides,
         team1_color=tracker.team1_color,
         team2_color=tracker.team2_color,
-        fps=fps
+        fps=fps,
+        output_dir=statistics_dir
     )
 
     # Játékos aktivitási statisztikák generálása
+    statistics_dir = os.path.join(output_video_dir, "statistics")
     generate_player_activity_summary(
         player_coordinates_list=keypoint_data["player_coordinates"],
         speed_estimator=tracker.speed_estimator,
-        tracker=tracker
+        tracker=tracker,
+        output_dir=statistics_dir
     )
 
     # Játékosok és labda hőtérképek generálása

@@ -3,7 +3,14 @@ import numpy as np
 import os
 from matplotlib.lines import Line2D
 
-def plot_players_per_half_graph(player_coordinates_list, track_id_to_team, field_sides, team1_color, team2_color, fps):
+def plot_players_per_half_graph(player_coordinates_list, 
+                                track_id_to_team, 
+                                field_sides, 
+                                team1_color, 
+                                team2_color, 
+                                fps, 
+                                output_dir="statistics"):
+    
     num_frames = len(player_coordinates_list)
 
     # Játékosszámok listái
@@ -98,7 +105,6 @@ def plot_players_per_half_graph(player_coordinates_list, track_id_to_team, field
     )
 
     # Mentés fájlba
-    output_dir = "player_positions_per_frame/player_positions_graph"
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, "players_per_half_timed_graph.png")
     plt.tight_layout(rect=[0, 0, 1, 0.88])

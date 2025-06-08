@@ -4,7 +4,7 @@ import numpy as np
 from matplotlib.patches import Rectangle
 
 # Játékos aktivitási statisztikák generálása
-def generate_player_activity_summary(player_coordinates_list, speed_estimator, tracker=None, output_dir="player_activity/player_activity_statistics"):
+def generate_player_activity_summary(player_coordinates_list, speed_estimator, tracker=None, output_dir="statistics"):
     os.makedirs(output_dir, exist_ok=True)
 
     # Játékosok jelenlétének számlálása
