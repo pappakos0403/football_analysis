@@ -103,13 +103,14 @@ def select_video_for_analysis(video_file: Path):
 # --- Kezdőlap ("/") ---
 @ui.page("/")
 def start_page():
-    with ui.column().classes("absolute-center items-center gap-12"):
+    with ui.column().classes("absolute-center items-center gap-24"):
         # Kezdőlap címe
         ui.label("Futballanalízis Alkalmazás").classes("text-3xl font-bold")
-        # Indítás gomb -> teszt oldalra navigál
-        ui.button("Indítás", on_click=lambda: ui.navigate.to("/main_page")).classes("w-48 text-lg")
-        # Kilépés gomb -> alkalmazás leállítása
-        ui.button("Kilépés", on_click=app.shutdown).classes("w-48 text-lg")
+        with ui.column().classes("gap-12 w-64"):
+            # Indítás gomb -> teszt oldalra navigál
+            ui.button("Indítás", on_click=lambda: ui.navigate.to("/main_page")).classes("w-full")
+            # Kilépés gomb -> alkalmazás leállítása
+            ui.button("Kilépés", on_click=app.shutdown).classes("w-full")
 
 # --- Feltöltött videók oldala ("/uploaded_videos") ---
 @ui.page("/uploaded_videos")
@@ -444,14 +445,15 @@ def main_page():
                   ).props('accept=".mp4,.avi,.mkv" auto-upload')  
         # Videó feltöltésének leírása
         ui.markdown("Itt töltheti fel az elemezni kívánt videót (mp4/avi/mkv).").classes("text-center")
-        # Feltöltött videók -> feltöltött videók oldalára navigál
-        ui.button("Feltöltött videók", on_click=lambda: ui.navigate.to("/uploaded_videos")).classes("mt-4")
-        # Elemzés konfigurációs oldal -> elemzés konfigurációs oldalra navigál
-        ui.button("Videóelemzés", on_click=lambda: ui.navigate.to("/analysis_config")).classes("mt-4")
-        # Elemzett videók -> elemzett videók oldalára navigál
-        ui.button("Elemzett videók", on_click=lambda: ui.navigate.to("/analyzed_videos")).classes("mt-4")
-        # Vissza a kezdőlapra gomb -> kezdőlapra navigál
-        ui.button("Vissza a kezdőlapra", on_click=lambda: ui.navigate.to("/")).classes("mt-4")
+        with ui.column().classes("gap-2 w-64"):
+            # Feltöltött videók -> feltöltött videók oldalára navigál
+            ui.button("Feltöltött videók", on_click=lambda: ui.navigate.to("/uploaded_videos")).classes("w-full")
+            # Elemzés konfigurációs oldal -> elemzés konfigurációs oldalra navigál
+            ui.button("Videóelemzés", on_click=lambda: ui.navigate.to("/analysis_config")).classes("w-full")
+            # Elemzett videók -> elemzett videók oldalára navigál
+            ui.button("Elemzett videók", on_click=lambda: ui.navigate.to("/analyzed_videos")).classes("w-full")
+            # Vissza a kezdőlapra gomb -> kezdőlapra navigál
+            ui.button("Vissza a kezdőlapra", on_click=lambda: ui.navigate.to("/")).classes("w-full")
 
 # --- GUI indítása natív módban, teljes képernyőn ---
 app.add_static_files('/videos', INPUT_DIR)
