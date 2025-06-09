@@ -279,6 +279,8 @@ def statistics_page():
                 categorized["Játékosok aktivitási statisztikái"].append(file)
             elif "players_per_half" in name:
                 categorized["Játékosok elhelyezkedése a térfeleken"].append(file)
+            elif "offside" in name:
+                categorized["Lesek statisztikái"].append(file)
             else:
                 categorized["Egyéb statisztikák"].append(file)
 

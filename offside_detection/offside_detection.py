@@ -99,7 +99,7 @@ class OffsideDetector:
 
         return frames
 
-    def plot_top5_offsides(self, fps, team1_color_rgb=(0.0, 0.0, 1.0), team2_color_rgb=(1.0, 0.5, 0.0)):
+    def plot_top5_offsides(self, fps, output_dir, team1_color_rgb=(0.0, 0.0, 1.0), team2_color_rgb=(1.0, 0.5, 0.0)):
         # Top5 játékos kiválasztása lesen töltött frame alapján
         top5 = sorted(self.offsides_stats.items(), key=lambda x: x[1], reverse=True)[:5]
 
@@ -143,6 +143,7 @@ class OffsideDetector:
                     label, va='center', ha='left', fontsize=10)
 
         plt.tight_layout()
-        os.makedirs("offside_detection/", exist_ok=True)
-        plt.savefig("offside_detection/top5_offside_players.png", dpi=150)
+        os.makedirs(output_dir, exist_ok=True)
+        output_path = os.path.join(output_dir, "top5_offside_players.png")
+        plt.savefig(output_path, dpi=150)
         plt.close()

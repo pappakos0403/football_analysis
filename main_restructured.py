@@ -127,8 +127,10 @@ def run_analysis_pipeline(video_path: str, status_callback=None):
     )
     offsides_per_frame = offside_detector.detect_offsides_per_frame()
     annotated_frames = offside_detector.draw_offside_flags(annotated_frames, offsides_per_frame, tracks)
+    statistics_dir = os.path.join(output_video_dir, "statistics")
     offside_detector.plot_top5_offsides(
         fps=fps,
+        output_dir=statistics_dir,
         team1_color_rgb=tuple(np.array(tracker.team1_color) / 255.0),
         team2_color_rgb=tuple(np.array(tracker.team2_color) / 255.0)
     )
