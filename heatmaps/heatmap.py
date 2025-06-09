@@ -61,8 +61,21 @@ def draw_football_pitch(ax):
 
 
 # Hőtérkép generálása játékosokra
-def generate_player_heatmaps(player_coordinates: list[dict], output_dir: str, min_ratio=0.5):
+def generate_player_heatmaps(player_coordinates: list[dict], 
+                             track_id_to_team: dict[int, int], 
+                             output_dir: str,
+                             tracker=None, 
+                             min_ratio=0.5):
+    # Kimeneti könyvtár létrehozása, ha nem létezik
     os.makedirs(output_dir, exist_ok=True)
+
+    # Csapatok könyvtárainak létrehozása
+    team_dirs = {
+        1: os.path.join(output_dir, "team1"),
+        2: os.path.join(output_dir, "team2")
+    }
+    os.makedirs(team_dirs[1], exist_ok=True)
+    os.makedirs(team_dirs[2], exist_ok=True)
 
     # Játékos pozícióinak tárolása
     player_presence = {}
@@ -89,9 +102,29 @@ def generate_player_heatmaps(player_coordinates: list[dict], output_dir: str, mi
             fig, ax = plt.subplots(figsize=(12, 8))
             draw_football_pitch(ax)  # Pálya háttér
             sns.kdeplot(x=x, y=y, fill=True, cmap="hot", bw_adjust=0.5, thresh=0.05, alpha=0.7)
-            ax.set_title(f"Hőtérkép - Játékos {player_id}", fontsize=14)
+            # Csapat mezszínének meghatározása és RGB normalizálás
+            team_id = track_id_to_team.get(player_id)
+            if team_id == 1:
+                team_color = np.array([255, 255, 255]) if tracker is None else np.array(tracker.team1_color)
+            elif team_id == 2:
+                team_color = np.array([255, 255, 255]) if tracker is None else np.array(tracker.team2_color)
+            else:
+                team_color = np.array([255, 255, 255])
+
+            # RGB [0-1] formátum
+            team_color_normalized = tuple(team_color / 255.0)
+            # Hőtérképek címei megfelelő színnel
+            ax.set_title(f"Hőtérkép - Játékos {player_id}", fontsize=14, color=team_color_normalized, fontweight='bold')
+
+            # Tengelyek címei
             ax.set_xlabel("Pálya hossza (m)")
             ax.set_ylabel("Pálya szélessége (m)")
+
+            # Hőtérképek csoportosítása csapatok szerint
+            team_id = track_id_to_team.get(player_id)
+            if team_id in (1, 2):
+                output_path = os.path.join(team_dirs[team_id], f"heatmap_{player_id}.png")
+                plt.savefig(output_path, dpi=150)
 
             # Mentés fájlba
             output_path = os.path.join(output_dir, f"heatmap_{player_id}.png")

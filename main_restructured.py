@@ -160,8 +160,14 @@ def run_analysis_pipeline(video_path: str, status_callback=None):
     )
 
     # Játékosok és labda hőtérképek generálása
-    generate_player_heatmaps(keypoint_data["player_coordinates"], output_dir = heatmap_dir)
-    generate_ball_heatmap(keypoint_data["ball_coordinates"], output_path=os.path.join(heatmap_dir, "ball_heatmap.png"))
+    generate_player_heatmaps(keypoint_data["player_coordinates"], 
+                             track_id_to_team=tracker.track_id_to_team, 
+                             output_dir = heatmap_dir,
+                             tracker=tracker)
+    
+    ball_dir = os.path.join(heatmap_dir, "ball_heatmap")
+    generate_ball_heatmap(keypoint_data["ball_coordinates"], 
+                          output_path=os.path.join(ball_dir, "ball_heatmap.png"))
 
     # Kimeneti videó mentése + előnézeti kép generálása
     update("Kimeneti videó generálása és thumbnail készítése...")

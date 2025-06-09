@@ -5,7 +5,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import shutil
 import os
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 # ----------------
 # --- VÁLTOZÓK ---
@@ -182,55 +182,75 @@ def analyzed_video_detail_page():
 @ui.page("/heatmaps")
 def heatmaps_page():
     with ui.column().classes("absolute-center items-center gap-4"):
-        # Oldal címe
+        # Oldalcím
         ui.label("Hőtérképek").classes("text-2xl font-semibold")
 
-        # Hőtérképek mappa az elemzett videó alapján
+        # Hőtérképek könyvtárak definiálása
         heatmap_dir = selected_analyzed_video.parent / "heatmaps"
-        heatmap_files = sorted(list(heatmap_dir.glob("*.png")))
+        team1_dir = heatmap_dir / "team1"
+        team2_dir = heatmap_dir / "team2"
+        ball_dir = heatmap_dir / "ball_heatmap"
 
-        # Ha nincsenek képek
-        if not heatmap_files:
+        # Kategorizált fájlgyűjtés
+        categorized = OrderedDict({
+            "Team1 hőtérképei": sorted(team1_dir.glob("*.png")) if team1_dir.exists() else [],
+            "Team2 hőtérképei": sorted(team2_dir.glob("*.png")) if team2_dir.exists() else [],
+            "Labda hőtérképe": sorted(ball_dir.glob("*.png")) if ball_dir.exists() else [],
+        })
+
+        # Ha egyik kategóriában sincs fájl
+        if not any(categorized.values()):
             ui.label("Nem találhatóak hőtérképek ehhez az elemzett videóhoz.").classes("text-white")
-            # Vissza gomb
             ui.button("Vissza", on_click=lambda: ui.navigate.to("/analyzed_video_detail")).classes("mt-6")
             return
 
-        # --- Dialógus a képek megjelenítéséhez ---
+        # Dialógus és képállapot
         image_dialog = ui.dialog().props('maximized').classes("bg-black bg-opacity-90")
         current_index = {"value": 0}
+        flat_file_list = []
 
         with image_dialog:
-            with ui.column().classes("items-center relative"):
-                # Bezáró ikon jobb felső sarokban
-                ui.button('X', on_click=image_dialog.close).props('flat').classes('absolute right-4 top-4 z-50 bg-red-600 text-white font-bold w-8 h-8 rounded flex items-center justify-center')
-
-                # Teljes kép
+            with ui.column().classes("items-center relative pt-12"):
+                # Bezáró gomb
+                ui.button('X', on_click=image_dialog.close).props('flat').classes(
+                    'absolute right-4 top-4 z-50 bg-red-600 text-white font-bold w-8 h-8 rounded flex items-center justify-center'
+                )
+                # Nagy kép megjelenítése
                 image_display = ui.image().classes("w-full max-w-screen-xl h-auto object-contain rounded shadow")
 
-                # Lapozás gombok vízszintesen
+                # Lapozógombok
                 with ui.row().classes("w-full justify-center items-center gap-8 p-4 bg-black bg-opacity-70"
-                              ).style('position: absolute; bottom: 0;'):
+                                      ).style('position: absolute; bottom: 0;'):
                     ui.button("⬅️", on_click=lambda: show_image(current_index["value"] - 1)).classes("w-24")
                     ui.button("➡️", on_click=lambda: show_image(current_index["value"] + 1)).classes("w-24")
 
         # Kép megjelenítő függvény
         def show_image(index: int):
-            if 0 <= index < len(heatmap_files):
+            if 0 <= index < len(flat_file_list):
                 current_index["value"] = index
-                rel_path = f"/analyzed_videos/{heatmap_files[index].relative_to('output_videos').as_posix()}"
+                rel_path = f"/analyzed_videos/{flat_file_list[index].relative_to('output_videos').as_posix()}"
                 image_display.set_source(rel_path)
                 image_dialog.open()
 
-        # --- Képkártyák megjelenítése előnézettel ---
-        with ui.row().classes("justify-center flex-wrap gap-4 max-w-screen-2xl"):
-            for idx, heatmap_path in enumerate(heatmap_files):
-                rel_path = f"/analyzed_videos/{heatmap_path.relative_to('output_videos').as_posix()}"
-                with ui.column().classes("items-center cursor-pointer"):
-                    with ui.card().classes("p-2 hover:bg-gray-700 transition-colors duration-200") \
-                            .on('click', lambda i=idx: show_image(i)):
-                        ui.image(rel_path).classes("w-40 h-28 rounded shadow object-cover")
-                        ui.label(heatmap_path.name).classes("text-xs text-white text-center mt-1 max-w-40 truncate")
+        # Kategóriánkénti képkártyák megjelenítése
+        for category, files in categorized.items():
+            if not files:
+                continue
+
+            # Kategória címe
+            ui.label(category).classes("text-xl font-semibold mt-6 text-white")
+
+            # Képkártyák sorban
+            with ui.row().classes("justify-center flex-wrap gap-4 max-w-screen-2xl"):
+                for idx, file_path in enumerate(files):
+                    flat_index = len(flat_file_list)
+                    flat_file_list.append(file_path)
+                    rel_path = f"/analyzed_videos/{file_path.relative_to('output_videos').as_posix()}"
+                    with ui.column().classes("items-center cursor-pointer"):
+                        with ui.card().classes("p-2 hover:bg-gray-700 transition-colors duration-200") \
+                                .on('click', lambda i=flat_index: show_image(i)):
+                            ui.image(rel_path).classes("w-40 h-28 rounded shadow object-cover")
+                            ui.label(file_path.name).classes("text-xs text-white text-center mt-1 max-w-40 truncate")
 
         # Vissza gomb
         ui.button("Vissza", on_click=lambda: ui.navigate.to("/analyzed_video_detail")).classes("mt-6")
@@ -268,7 +288,7 @@ def statistics_page():
         flat_file_list = []
 
         with image_dialog:
-            with ui.column().classes("items-center relative"):
+            with ui.column().classes("items-center relative pt-12"):
                 # Bezárás gomb
                 ui.button('X', on_click=image_dialog.close).props('flat').classes(
                     'absolute right-4 top-4 z-50 bg-red-600 text-white font-bold w-8 h-8 rounded flex items-center justify-center'
