@@ -41,7 +41,7 @@ class Tracker:
         # Legközelebbi játékosok azonosítóinak tárolása
         self.closest_player_ids = {}
 
-    def draw_ellipse(self, frame, bbox, color, track_id = None):
+    def draw_ellipse(self, frame, bbox, color, track_id = None, draw_player_ellipses=True, draw_player_ids=True):
         # Alsó koordináta a bbox alapján
         y2 = int(bbox[3])  
 
@@ -50,35 +50,37 @@ class Tracker:
         width = get_bbox_width(bbox)
 
         # Elipszis rajzolása a játékos alá
-        cv2.ellipse(
-            frame,
-            center=(x_center, y2),
-            axes=(int(width), int(0.35 * width)),
-            angle=0.0,
-            startAngle=-45,
-            endAngle=235,
-            color=color,
-            thickness=2,
-            lineType=cv2.LINE_4
-        )
+        if draw_player_ellipses:
+            cv2.ellipse(
+                frame,
+                center=(x_center, y2),
+                axes=(int(width), int(0.35 * width)),
+                angle=0.0,
+                startAngle=-45,
+                endAngle=235,
+                color=color,
+                thickness=2,
+                lineType=cv2.LINE_4
+            )
 
         # Track_id megjelenítése a játékos alatt
-        if track_id is not None:
-            # Text generálása
-            text = str(track_id)
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            font_scale = 0.5
-            thickness = 1
-            text_size, _ = cv2.getTextSize(text, font, font_scale, thickness)
-            text_w, text_h = text_size
+        if draw_player_ids:
+            if track_id is not None:
+                # Text generálása
+                text = str(track_id)
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                font_scale = 0.5
+                thickness = 1
+                text_size, _ = cv2.getTextSize(text, font, font_scale, thickness)
+                text_w, text_h = text_size
 
-            # Téglalap pozicionálása
-            rect_top_left = (x_center - text_w // 2, y2 - text_h - 10)
-            rect_bottom_right = (x_center + text_w // 2 + 2 , y2 - 10)
+                # Téglalap pozicionálása
+                rect_top_left = (x_center - text_w // 2, y2 - text_h - 10)
+                rect_bottom_right = (x_center + text_w // 2 + 2 , y2 - 10)
 
-            # Téglalap kitöltése fehér színnel
-            cv2.rectangle(frame, rect_top_left, rect_bottom_right, color=(255, 255, 255), thickness=cv2.FILLED)
-            cv2.putText(frame, text, (x_center - text_w // 2, y2 - 10), font, font_scale, (0, 0, 0), thickness)
+                # Téglalap kitöltése fehér színnel
+                cv2.rectangle(frame, rect_top_left, rect_bottom_right, color=(255, 255, 255), thickness=cv2.FILLED)
+                cv2.putText(frame, text, (x_center - text_w // 2, y2 - 10), font, font_scale, (0, 0, 0), thickness)
         
         return frame
 
@@ -196,7 +198,15 @@ class Tracker:
                     tracks,  
                     keypoints_list=None, 
                     player_coordinates_list=None, 
-                    ball_coordinates_list=None):
+                    ball_coordinates_list=None,
+                    draw_player_ellipses=True,
+                    draw_player_ids=True,
+                    draw_referee_ellipses=True,
+                    draw_ball_triangle=True,
+                    draw_speed_distance=True,
+                    draw_keypoints=True,
+                    draw_player_coordinates=True
+                    ):
 
         annotated_frames = []
 
@@ -245,23 +255,38 @@ class Tracker:
 
                 # Elipszis rajzolása a játékosok alá
                 if team_color_num == 1:
-                    annotated_frame = self.draw_ellipse(annotated_frame, player["bbox"], self.team1_color, track_id=track_id)
+                    annotated_frame = self.draw_ellipse(annotated_frame, 
+                                                        player["bbox"], 
+                                                        self.team1_color, 
+                                                        track_id=track_id,
+                                                        draw_player_ellipses=draw_player_ellipses,
+                                                        draw_player_ids=draw_player_ids
+                                                        )
                 elif team_color_num == 2:
-                    annotated_frame = self.draw_ellipse(annotated_frame, player["bbox"], self.team2_color, track_id=track_id)
+                    annotated_frame = self.draw_ellipse(annotated_frame, 
+                                                        player["bbox"], 
+                                                        self.team2_color, 
+                                                        track_id=track_id,
+                                                        draw_player_ellipses=draw_player_ellipses,
+                                                        draw_player_ids=draw_player_ids
+                                                        )
 
             # Játékvezetők:
-            for track_id, referee in referee_dict.items():
-                # Sárga elipszis rajzolása a játékvezető alá
-                referee_color = (0, 255, 255)
-                annotated_frame = self.draw_ellipse(annotated_frame, referee["bbox"], referee_color)
+            if draw_referee_ellipses:
+                for track_id, referee in referee_dict.items():
+                    # Sárga elipszis rajzolása a játékvezető alá
+                    referee_color = (0, 255, 255)
+                    annotated_frame = self.draw_ellipse(annotated_frame, referee["bbox"], referee_color)
 
             # Labda:
-            if 1 in ball_dict:
-                ball_bbox = [int(v) for v in ball_dict[1]["bbox"]]
-                # Labda fölé zöld háromszög rajzolása
-                annotated_frame = self.draw_triangle(annotated_frame, ball_bbox, (0, 255, 0))
+            if draw_ball_triangle:
+                if 1 in ball_dict:
+                    ball_bbox = [int(v) for v in ball_dict[1]["bbox"]]
+                    # Labda fölé zöld háromszög rajzolása
+                    annotated_frame = self.draw_triangle(annotated_frame, ball_bbox, (0, 255, 0))
 
-            closest_player_id = self.possession.player_on_the_ball(player_coordinates_list[frame_num], ball_coordinates_list[frame_num])
+            closest_player_id = self.possession.player_on_the_ball(player_coordinates_list[frame_num], 
+                                                                   ball_coordinates_list[frame_num])
 
             # Legközelebbi játékosok azonosítóinak tárolása a passzok számának méréséhez
             if closest_player_id is not None:
@@ -276,26 +301,44 @@ class Tracker:
                 pts = keypoints_list[frame_num]
                 if pts is not None and pts.size > 0:
                     # Kulcspontok kirajzolása
-                    for pt in pts:
-                        cv2.circle(annotated_frame, (int(pt[0]), int(pt[1])), radius=4, color=(255, 0, 0), thickness=-1)
-                    # Kulcspontok összekötése -> pályavonalak rajzolása
-                    for edge in self.pitch_edges:
-                        idx1, idx2 = edge[0]-1, edge[1]-1
-                        if idx1 < len(pts) and idx2 < len(pts):
-                            pt1 = (int(pts[idx1][0]), int(pts[idx1][1]))
-                            pt2 = (int(pts[idx2][0]), int(pts[idx2][1]))
-                            cv2.line(annotated_frame, pt1, pt2, color=(255, 255, 0), thickness=2)
+                    if draw_keypoints:
+                        for pt in pts:
+                            cv2.circle(annotated_frame, (int(pt[0]), int(pt[1])), radius=4, color=(255, 0, 0), thickness=-1)
+                        # Kulcspontok összekötése -> pályavonalak rajzolása
+                        for edge in self.pitch_edges:
+                            idx1, idx2 = edge[0]-1, edge[1]-1
+                            if idx1 < len(pts) and idx2 < len(pts):
+                                pt1 = (int(pts[idx1][0]), int(pts[idx1][1]))
+                                pt2 = (int(pts[idx2][0]), int(pts[idx2][1]))
+                                cv2.line(annotated_frame, pt1, pt2, color=(255, 255, 0), thickness=2)
 
             # Játékosok pályakoordinátáinak kiírása
             if player_coordinates_list and frame_num < len(player_coordinates_list):
                 coords = player_coordinates_list[frame_num]
+                # Kiírások pozicionálása (koordináták + sebesség- és távolságmérés)
+                if draw_player_coordinates == True:
+                    if draw_speed_distance == True:
+                        coordinates_y_pos = 40
+                        speed_distance_y_pos = 20
+                    else:
+                        coordinates_y_pos = 20
+                if draw_speed_distance == True and draw_player_coordinates == False:
+                    speed_distance_y_pos = 20
+
                 for track_id, player in tracks["players"][frame_num].items():
                     if track_id in coords:
                         x1,y1,x2,y2 = player["bbox"]
                         x_center = int((x1 + x2) / 2)
                         y_bottom = int(y2)
-                        #text = f"x: {coords[track_id][0]:.1f}m y: {coords[track_id][1]:.1f}m"
-                        #cv2.putText(annotated_frame, text, (x_center - 70, y_bottom + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
+                        if draw_player_coordinates:
+                            text = f"x: {coords[track_id][0]:.1f}m y: {coords[track_id][1]:.1f}m"
+                            cv2.putText(annotated_frame, 
+                                        text, 
+                                        (x_center - 70, y_bottom + coordinates_y_pos), 
+                                        cv2.FONT_HERSHEY_SIMPLEX, 
+                                        0.5, 
+                                        (0, 0, 0), 
+                                        2)
 
                         # Sebesség és távolság mérése
                         team_id = self.track_id_to_team.get(track_id, None)
@@ -303,20 +346,30 @@ class Tracker:
                         speed_kmh, distance_m = self.speed_estimator.get_player_info(track_id)
 
                         # Sebesség és távolság kiírása
-                        speed_dist_text = f"{speed_kmh:.1f} km/h, {distance_m:.1f} m"
-                        (text_width, text_height), _ = cv2.getTextSize(speed_dist_text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-                        text_x = x_center - text_width // 2
-                        cv2.putText(annotated_frame, speed_dist_text, (text_x, y_bottom + 20), 
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
-                        cv2.putText(annotated_frame, speed_dist_text, (text_x, y_bottom + 20), 
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+                        if draw_speed_distance:
+                            speed_dist_text = f"{speed_kmh:.1f} km/h, {distance_m:.1f} m"
+                            (text_width, text_height), _ = cv2.getTextSize(speed_dist_text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+                            text_x = x_center - text_width // 2
+                            cv2.putText(annotated_frame, speed_dist_text, (text_x, y_bottom + speed_distance_y_pos), 
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
+                            cv2.putText(annotated_frame, speed_dist_text, (text_x, y_bottom + speed_distance_y_pos), 
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
             
             annotated_frames.append(annotated_frame)
 
         return annotated_frames
     
     # Kapusokat külön annotáljuk
-    def goalkeeper_annotations(self, annotated_frames, tracks, frames, player_coordinates_list, field_sides):
+    def goalkeeper_annotations(self, 
+                               annotated_frames, 
+                               tracks, 
+                               frames, 
+                               player_coordinates_list, 
+                               field_sides,
+                               draw_goalkeeper_ellipses=True,
+                               draw_goalkeeper_ids=True
+                               ):
+        
         for frame_num, frame in enumerate(frames):
             annotated_frame = annotated_frames[frame_num]
             player_dict = tracks["players"][frame_num]
@@ -342,9 +395,21 @@ class Tracker:
 
                     # Kapus annotációk rajzolása
                     if team_number == 1:
-                        annotated_frame = self.draw_ellipse(annotated_frame, player["bbox"], self.team1_color, track_id=track_id)
+                        annotated_frame = self.draw_ellipse(annotated_frame, 
+                                                            player["bbox"], 
+                                                            self.team1_color, 
+                                                            track_id=track_id,
+                                                            draw_player_ellipses=draw_goalkeeper_ellipses,
+                                                            draw_player_ids=draw_goalkeeper_ids
+                                                            )
                     else:
-                        annotated_frame = self.draw_ellipse(annotated_frame, player["bbox"], self.team2_color, track_id=track_id)
+                        annotated_frame = self.draw_ellipse(annotated_frame, 
+                                                            player["bbox"], 
+                                                            self.team2_color, 
+                                                            track_id=track_id,
+                                                            draw_player_ellipses=draw_goalkeeper_ellipses,
+                                                            draw_player_ids=draw_goalkeeper_ids
+                                                            )
 
             # Annotált képkockák frissítése
             annotated_frames[frame_num] = annotated_frame
@@ -379,64 +444,65 @@ class Tracker:
         return annotated_frames
     
     # Képernyő tetején a csapatok színével ellátott négyzetek kirajzolása
-    def coloured_squares_annotations(self, annotated_frames):
-        for frame_index, frame in enumerate(annotated_frames):
-            # Kép méretének lekérdezése
-            h, w, _ = frame.shape
+    def coloured_squares_annotations(self, annotated_frames, draw_team_colors_topbar=True):
+        if draw_team_colors_topbar:
+            for frame_index, frame in enumerate(annotated_frames):
+                # Kép méretének lekérdezése
+                h, w, _ = frame.shape
 
-            # Négyzetek mérete és pozíciója
-            square_size = 30
-            gap = 10
+                # Négyzetek mérete és pozíciója
+                square_size = 30
+                gap = 10
 
-            # Teljes szélesség kiszámítása (2 négyzet + 2 gap + 2 szöveg)
-            total_width = (square_size * 2) + (gap * 3) + 160
+                # Teljes szélesség kiszámítása (2 négyzet + 2 gap + 2 szöveg)
+                total_width = (square_size * 2) + (gap * 3) + 160
 
-            # Kezdő X pozíció a középre igazításhoz
-            start_x = (w - total_width) // 2
-            start_y = 10
+                # Kezdő X pozíció a középre igazításhoz
+                start_x = (w - total_width) // 2
+                start_y = 10
 
-            # Overlay másolat készítése
-            overlay = frame.copy()
+                # Overlay másolat készítése
+                overlay = frame.copy()
 
-            # Átlátszó téglalap háttér (fehér, 60%-os átlátszóság)
-            cv2.rectangle(overlay, (start_x - 10, start_y - 5), 
-                        (start_x + total_width + 10, start_y + square_size + 5), 
-                        (255, 255, 255), -1)
+                # Átlátszó téglalap háttér (fehér, 60%-os átlátszóság)
+                cv2.rectangle(overlay, (start_x - 10, start_y - 5), 
+                            (start_x + total_width + 10, start_y + square_size + 5), 
+                            (255, 255, 255), -1)
 
-            # Átlátszóság alkalmazása
-            alpha = 0.6
-            cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+                # Átlátszóság alkalmazása
+                alpha = 0.6
+                cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
 
-            # Team1 négyzet kirajzolása
-            cv2.rectangle(frame, (start_x, start_y), 
-                        (start_x + square_size, start_y + square_size), 
-                        self.team1_color, -1)  # Kitöltött négyzet
+                # Team1 négyzet kirajzolása
+                cv2.rectangle(frame, (start_x, start_y), 
+                            (start_x + square_size, start_y + square_size), 
+                            self.team1_color, -1)  # Kitöltött négyzet
 
-            # Fekete kontúr
-            cv2.rectangle(frame, (start_x, start_y), 
-                        (start_x + square_size, start_y + square_size), 
-                        (0, 0, 0), 2)
+                # Fekete kontúr
+                cv2.rectangle(frame, (start_x, start_y), 
+                            (start_x + square_size, start_y + square_size), 
+                            (0, 0, 0), 2)
 
-            # Szöveg megjelenítése
-            cv2.putText(frame, "Team1", (start_x + square_size + gap, start_y + 20), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2, cv2.LINE_AA)
+                # Szöveg megjelenítése
+                cv2.putText(frame, "Team1", (start_x + square_size + gap, start_y + 20), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2, cv2.LINE_AA)
 
-            # Team2 négyzet kirajzolása
-            team2_x = start_x + square_size + gap + 100  # Pozíció kiszámítása
-            cv2.rectangle(frame, (team2_x, start_y), 
-                        (team2_x + square_size, start_y + square_size), 
-                        self.team2_color, -1)
+                # Team2 négyzet kirajzolása
+                team2_x = start_x + square_size + gap + 100  # Pozíció kiszámítása
+                cv2.rectangle(frame, (team2_x, start_y), 
+                            (team2_x + square_size, start_y + square_size), 
+                            self.team2_color, -1)
 
-            # Fekete kontúr
-            cv2.rectangle(frame, (team2_x, start_y), 
-                        (team2_x + square_size, start_y + square_size), 
-                        (0, 0, 0), 2)
+                # Fekete kontúr
+                cv2.rectangle(frame, (team2_x, start_y), 
+                            (team2_x + square_size, start_y + square_size), 
+                            (0, 0, 0), 2)
 
-            # Szöveg megjelenítése
-            cv2.putText(frame, "Team2", (team2_x + square_size + gap, start_y + 20), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2, cv2.LINE_AA)
+                # Szöveg megjelenítése
+                cv2.putText(frame, "Team2", (team2_x + square_size + gap, start_y + 20), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2, cv2.LINE_AA)
 
-            # Frissített frame visszaírása
-            annotated_frames[frame_index] = frame
+                # Frissített frame visszaírása
+                annotated_frames[frame_index] = frame
 
         return annotated_frames

@@ -5,7 +5,14 @@ import numpy as np
 from collections import defaultdict
 
 class OffsideDetector:
-    def __init__(self, player_coordinates, ball_coordinates, closest_player_ids_filtered, track_id_to_team, field_sides, flag_path):
+    def __init__(self, 
+                 player_coordinates, 
+                 ball_coordinates, 
+                 closest_player_ids_filtered, 
+                 track_id_to_team, 
+                 field_sides, 
+                 flag_path,
+                 ):
         # Bemeneti adatok tárolása
         self.player_coordinates = player_coordinates
         self.ball_coordinates = ball_coordinates

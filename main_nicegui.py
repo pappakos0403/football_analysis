@@ -376,13 +376,13 @@ def analysis_config_page():
         status_label.set_text(text) # A .set_text() használata egyértelműbbé teszi a szándékot
 
     # Aszinkron függvény a videóelemzés futtatására visszajelzéssel
-    async def run_pipeline_with_feedback(video_path: str, loader_dialog, container_to_hide):
+    async def run_pipeline_with_feedback(video_path: str, loader_dialog, container_to_hide, config: dict):
         # Töltőképernyő mögötti konténer elrejtése
         container_to_hide.set_visibility(False)
         # Töltőképernyő megnyitása
         loader_dialog.open()
         # Elemzés futtatása a háttérben a helyi frissítő függvénnyel
-        await run_in_thread(lambda: run_analysis_pipeline(video_path, update_status))
+        await run_in_thread(lambda: run_analysis_pipeline(video_path, update_status, config))
         # Töltőképernyő bezárása
         loader_dialog.close()
         ui.notify("Elemzés befejeződött!")
@@ -413,10 +413,56 @@ def analysis_config_page():
 
         # Elemzés indítása gomb (csak ha van kiválasztott videó)
         if selected_video:
-            ui.button("Elemzés indítása",
-                     # A gomb a helyileg definiált futtató függvényt hívja meg
-                     on_click=lambda: run_pipeline_with_feedback(str(selected_video), loader_dialog, page_container)
-                     ).classes("w-48 text-lg mt-2")
+            advanced_dialog = ui.dialog().props('modal').classes("bg-black bg-opacity-80 z-50")
+            with advanced_dialog:
+                with ui.column().classes("p-4 gap-2 items-center"):
+                    with ui.column().classes("items-center text-center"):
+                        # Panel címe és leírása
+                        ui.label("Elemzés konfigurálása").classes("text-lg font-semibold mb-2")
+                        ui.markdown("Válassza ki a kívánt opciókat az elemzéshez!").classes("text-sm mb-4")
+
+                    # Checkboxok külön konténerben, balra igazítva
+                    with ui.column().classes("items-start"):
+                        show_player_ellipses_cb = ui.checkbox("Játékosok annotálása", value=True)
+                        show_player_ids_cb = ui.checkbox("Játékosok azonosítói", value=True)
+                        show_referees_cb = ui.checkbox("Játékvezetők annotálása", value=True)
+                        show_ball_triangle_cb = ui.checkbox("Labda annotálása", value=True)
+                        show_team_colors_topbar_cb = ui.checkbox("Csapatokat jelölő négyzetek", value=True)
+                        show_speed_distance_cb = ui.checkbox("Sebesség és megtett távolság annotálása", value=True)
+                        show_possession_overlay_cb = ui.checkbox("Labdabirtoklás overlay", value=True)
+                        show_pass_statistics_cb = ui.checkbox("Passz statisztikák overlay", value=True)
+                        show_closest_player_triangle_cb = ui.checkbox("Legközelebbi játékos a labdához annotálása", value=True)
+                        show_offside_flags_cb = ui.checkbox("Lesek annotálása", value=True)
+                        show_keypoints_cb = ui.checkbox("Kulcspontok annotálása", value=True)
+                        show_player_coordinates_cb = ui.checkbox("Játékosok koordinátáinak annotálása", value=False)
+                    ui.button("Bezárás", on_click=advanced_dialog.close).classes("mt-4")
+
+            with ui.column().classes("items-center gap-2"):
+                ui.button("Elemzés indítása",
+                        # A gomb a helyileg definiált futtató függvényt hívja meg
+                        on_click=lambda: run_pipeline_with_feedback(
+                            str(selected_video), 
+                            loader_dialog, 
+                            page_container,
+                            {
+                                # Checkbox értékek átadása
+                                "show_player_ellipses": show_player_ellipses_cb.value,
+                                "show_player_ids": show_player_ids_cb.value,
+                                "show_referees": show_referees_cb.value,
+                                "show_ball_triangle": show_ball_triangle_cb.value,
+                                "show_team_colors_topbar": show_team_colors_topbar_cb.value,
+                                "show_speed_distance": show_speed_distance_cb.value,
+                                "show_possession_overlay": show_possession_overlay_cb.value,
+                                "show_pass_statistics": show_pass_statistics_cb.value,
+                                "show_closest_player_triangle": show_closest_player_triangle_cb.value,
+                                "show_offside_flags": show_offside_flags_cb.value,
+                                "show_keypoints": show_keypoints_cb.value,
+                                "show_player_coordinates": show_player_coordinates_cb.value,
+                            })
+                        ).classes("w-48 text-lg mt-2")
+                # Elemzés konfigurációs beállítások
+                ui.button("Haladó beállítások", on_click=advanced_dialog.open).classes("w-48 text-lg mt-2")
+            
 
         # Vissza a menübe gomb -> visszalépés a főoldalra
         ui.button("Vissza", on_click=lambda: ui.navigate.to("/main_page")).classes("mt-4")

@@ -12,7 +12,9 @@ from player_activity import generate_player_activity_summary
 from offside_detection import OffsideDetector
 
 # Fő elemzési pipeline
-def run_analysis_pipeline(video_path: str, status_callback=None):
+def run_analysis_pipeline(video_path: str, status_callback=None, config=None):
+    if config is None:
+        config = {}
     # Inicializálás
     filename = os.path.basename(video_path)
     video_stem = os.path.splitext(filename)[0]
@@ -81,10 +83,18 @@ def run_analysis_pipeline(video_path: str, status_callback=None):
     # Annotálás
     update("Annotálás folyamatban...")
     annotated_frames = tracker.annotations(
-        frames, tracks,
-        keypoints_list=keypoint_data["keypoints"],
-        player_coordinates_list=keypoint_data["player_coordinates"],
-        ball_coordinates_list=keypoint_data["ball_coordinates"]
+            frames, 
+            tracks,
+            keypoints_list=keypoint_data["keypoints"],
+            player_coordinates_list=keypoint_data["player_coordinates"],
+            ball_coordinates_list=keypoint_data["ball_coordinates"],
+            draw_player_ellipses = config.get("show_player_ellipses", True),
+            draw_player_ids = config.get("show_player_ids", True),
+            draw_referee_ellipses = config.get("show_referees", True),
+            draw_ball_triangle = config.get("show_ball_triangle", True),
+            draw_speed_distance = config.get("show_speed_distance", True),
+            draw_keypoints = config.get("show_keypoints", True),
+            draw_player_coordinates = config.get("show_player_coordinates", True)
     )
 
     # Térfél meghatározása
@@ -100,20 +110,36 @@ def run_analysis_pipeline(video_path: str, status_callback=None):
 
     # Kapusok annotálása
     update("Kapusok annotációja...")
-    annotated_frames = tracker.goalkeeper_annotations(annotated_frames, tracks, frames, keypoint_data["player_coordinates"], field_sides)
+    annotated_frames = tracker.goalkeeper_annotations(annotated_frames, 
+                                                      tracks, frames, 
+                                                      keypoint_data["player_coordinates"], 
+                                                      field_sides,
+                                                      draw_goalkeeper_ellipses = config.get("show_player_ellipses", True),
+                                                      draw_goalkeeper_ids = config.get("show_player_ids", True)
+                                                      )
     closest_player_ids_filtered = closest_player_ids_filter(tracker.closest_player_ids)
-    annotated_frames = tracker.draw_closest_players_triangles(annotated_frames, closest_player_ids_filtered, tracks)
+
+    # Labdát birtokló játékosok annotálása
+    update("Labdát birtokló játékosok annotálása...")
+    draw_closest_player_triangle = config.get("show_closest_player_triangle", True)
+    if draw_closest_player_triangle:
+        annotated_frames = tracker.draw_closest_players_triangles(annotated_frames, closest_player_ids_filtered, tracks)
 
     # Labdabirtoklás kiszámítása
     update("Labdabirtoklás számítása és annotálása...")
     possession = BallPossession()
-    annotated_frames = possession.measure_and_draw_possession(annotated_frames, closest_player_ids_filtered)
+    annotated_frames = possession.measure_and_draw_possession(annotated_frames, 
+                                                              closest_player_ids_filtered,
+                                                              draw_possession_overlay = config.get("show_possession_overlay", True)
+                                                              )
 
     # Passzok számlálása
     update("Passzok számítása és annotálása...")
     pass_counter = PassCounter()
     pass_counter.process_passes_per_frame(closest_player_ids_filtered, len(frames))
-    annotated_frames = pass_counter.draw_pass_statistics(annotated_frames)
+    draw_pass_statistics = config.get("show_pass_statistics")
+    if draw_pass_statistics:
+        annotated_frames = pass_counter.draw_pass_statistics(annotated_frames)
 
     # Lesen álló játékosok detektálása
     update("Lesek detektálása és annotálása...")
@@ -126,7 +152,9 @@ def run_analysis_pipeline(video_path: str, status_callback=None):
         flag_path="offside_detection/offside_flag.png"
     )
     offsides_per_frame = offside_detector.detect_offsides_per_frame()
-    annotated_frames = offside_detector.draw_offside_flags(annotated_frames, offsides_per_frame, tracks)
+    draw_offside_flags = config.get("show_offside_flags", True)
+    if draw_offside_flags:
+        annotated_frames = offside_detector.draw_offside_flags(annotated_frames, offsides_per_frame, tracks)
     statistics_dir = os.path.join(output_video_dir, "statistics")
     offside_detector.plot_top5_offsides(
         fps=fps,
@@ -137,7 +165,9 @@ def run_analysis_pipeline(video_path: str, status_callback=None):
 
     # Csapat színek megjelenítése
     update("Csapatok jelölése és színezése...")
-    annotated_frames = tracker.coloured_squares_annotations(annotated_frames)
+    annotated_frames = tracker.coloured_squares_annotations(annotated_frames, 
+                                                            draw_team_colors_topbar = config.get("show_team_colors_topbar", True)
+                                                            )
 
     # Játékosok száma térfelenként a megadott időintervallumokban grafikon elkészítése
     update("Grafikonok és statisztikák készítése...")
