@@ -148,7 +148,7 @@ def generate_player_activity_summary(player_coordinates_list, speed_estimator, t
         ax.grid(True)
 
         plt.tight_layout()
-        plt.savefig(os.path.join(output_dir, "team_comparison_summary.png"), bbox_inches='tight')
+        plt.savefig(os.path.join(output_dir, "activity_team_comparison_summary.png"), bbox_inches='tight')
         plt.close()
 
     # Mindhárom grafikon generálása
