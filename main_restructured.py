@@ -156,12 +156,14 @@ def run_analysis_pipeline(video_path: str, status_callback=None, config=None):
     if draw_offside_flags:
         annotated_frames = offside_detector.draw_offside_flags(annotated_frames, offsides_per_frame, tracks)
     statistics_dir = os.path.join(output_video_dir, "statistics")
-    offside_detector.plot_top5_offsides(
-        fps=fps,
-        output_dir=statistics_dir,
-        team1_color_rgb=tuple(np.array(tracker.team1_color) / 255.0),
-        team2_color_rgb=tuple(np.array(tracker.team2_color) / 255.0)
-    )
+    draw_offside_stats = config.get("show_offside_stats", True)
+    if draw_offside_stats:
+        offside_detector.plot_top5_offsides(
+            fps=fps,
+            output_dir=statistics_dir,
+            team1_color_rgb=tuple(np.array(tracker.team1_color) / 255.0),
+            team2_color_rgb=tuple(np.array(tracker.team2_color) / 255.0)
+        )
 
     # Csapat színek megjelenítése
     update("Csapatok jelölése és színezése...")
@@ -172,34 +174,42 @@ def run_analysis_pipeline(video_path: str, status_callback=None, config=None):
     # Játékosok száma térfelenként a megadott időintervallumokban grafikon elkészítése
     update("Grafikonok és statisztikák készítése...")
     statistics_dir = os.path.join(output_video_dir, "statistics")
-    plot_players_per_half_graph(
-        player_coordinates_list=keypoint_data["player_coordinates"],
-        track_id_to_team=tracker.track_id_to_team,
-        field_sides=field_sides,
-        team1_color=tracker.team1_color,
-        team2_color=tracker.team2_color,
-        fps=fps,
-        output_dir=statistics_dir
-    )
+    draw_players_per_half_graph = config.get("show_players_per_half_graph", True)
+    if draw_players_per_half_graph:
+        plot_players_per_half_graph(
+            player_coordinates_list=keypoint_data["player_coordinates"],
+            track_id_to_team=tracker.track_id_to_team,
+            field_sides=field_sides,
+            team1_color=tracker.team1_color,
+            team2_color=tracker.team2_color,
+            fps=fps,
+            output_dir=statistics_dir
+        )
 
     # Játékos aktivitási statisztikák generálása
     statistics_dir = os.path.join(output_video_dir, "statistics")
-    generate_player_activity_summary(
-        player_coordinates_list=keypoint_data["player_coordinates"],
-        speed_estimator=tracker.speed_estimator,
-        tracker=tracker,
-        output_dir=statistics_dir
-    )
+    draw_player_activity_stats = config.get("show_player_activity_stats", True)
+    if draw_player_activity_stats:
+        generate_player_activity_summary(
+            player_coordinates_list=keypoint_data["player_coordinates"],
+            speed_estimator=tracker.speed_estimator,
+            tracker=tracker,
+            output_dir=statistics_dir
+        )
 
     # Játékosok és labda hőtérképek generálása
-    generate_player_heatmaps(keypoint_data["player_coordinates"], 
-                             track_id_to_team=tracker.track_id_to_team, 
-                             output_dir = heatmap_dir,
-                             tracker=tracker)
+    draw_player_heatmaps = config.get("show_player_heatmaps", True)
+    if draw_player_heatmaps:
+        generate_player_heatmaps(keypoint_data["player_coordinates"], 
+                                track_id_to_team=tracker.track_id_to_team, 
+                                output_dir = heatmap_dir,
+                                tracker=tracker)
     
     ball_dir = os.path.join(heatmap_dir, "ball_heatmap")
-    generate_ball_heatmap(keypoint_data["ball_coordinates"], 
-                          output_path=os.path.join(ball_dir, "ball_heatmap.png"))
+    draw_ball_heatmap = config.get("show_ball_heatmap")
+    if draw_ball_heatmap:
+        generate_ball_heatmap(keypoint_data["ball_coordinates"], 
+                            output_path=os.path.join(ball_dir, "ball_heatmap.png"))
 
     # Kimeneti videó mentése + előnézeti kép generálása
     update("Kimeneti videó generálása és thumbnail készítése...")

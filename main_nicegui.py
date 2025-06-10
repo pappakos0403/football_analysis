@@ -418,23 +418,37 @@ def analysis_config_page():
                 with ui.column().classes("p-4 gap-2 items-center"):
                     with ui.column().classes("items-center text-center"):
                         # Panel címe és leírása
-                        ui.label("Elemzés konfigurálása").classes("text-lg font-semibold mb-2")
+                        ui.label("Elemzés konfigurálása").classes("text-2xl font-bold mb-2")
                         ui.markdown("Válassza ki a kívánt opciókat az elemzéshez!").classes("text-sm mb-4")
 
                     # Checkboxok külön konténerben, balra igazítva
-                    with ui.column().classes("items-start"):
-                        show_player_ellipses_cb = ui.checkbox("Játékosok annotálása", value=True)
-                        show_player_ids_cb = ui.checkbox("Játékosok azonosítói", value=True)
-                        show_referees_cb = ui.checkbox("Játékvezetők annotálása", value=True)
-                        show_ball_triangle_cb = ui.checkbox("Labda annotálása", value=True)
-                        show_team_colors_topbar_cb = ui.checkbox("Csapatokat jelölő négyzetek", value=True)
-                        show_speed_distance_cb = ui.checkbox("Sebesség és megtett távolság annotálása", value=True)
-                        show_possession_overlay_cb = ui.checkbox("Labdabirtoklás overlay", value=True)
-                        show_pass_statistics_cb = ui.checkbox("Passz statisztikák overlay", value=True)
-                        show_closest_player_triangle_cb = ui.checkbox("Legközelebbi játékos a labdához annotálása", value=True)
-                        show_offside_flags_cb = ui.checkbox("Lesek annotálása", value=True)
-                        show_keypoints_cb = ui.checkbox("Kulcspontok annotálása", value=True)
-                        show_player_coordinates_cb = ui.checkbox("Játékosok koordinátáinak annotálása", value=False)
+                    with ui.row().classes("w-full gap-8").style("display: flex; justify-content: space-between;"):
+                        # Bal oldali oszlop, annotációs opciók
+                        with ui.column().classes("gap-2").style("flex: 1; min-width: 0;"):
+                            with ui.row().classes("justify-center w-full"):
+                                ui.label("Annotációs opciók").classes("text-lg font-bold mb-2 text-yellow")
+                            show_player_ellipses_cb = ui.checkbox("Játékosok annotálása", value=True)
+                            show_player_ids_cb = ui.checkbox("Játékosok azonosítói", value=True)
+                            show_referees_cb = ui.checkbox("Játékvezetők annotálása", value=True)
+                            show_ball_triangle_cb = ui.checkbox("Labda annotálása", value=True)
+                            show_team_colors_topbar_cb = ui.checkbox("Csapatokat jelölő négyzetek", value=True)
+                            show_speed_distance_cb = ui.checkbox("Sebesség és megtett távolság annotálása", value=True)
+                            show_possession_overlay_cb = ui.checkbox("Labdabirtoklás overlay", value=True)
+                            show_pass_statistics_cb = ui.checkbox("Passz statisztikák overlay", value=True)
+                            show_closest_player_triangle_cb = ui.checkbox("Legközelebbi játékos a labdához annotálása", value=True)
+                            show_offside_flags_cb = ui.checkbox("Lesek annotálása", value=True)
+                            show_keypoints_cb = ui.checkbox("Kulcspontok annotálása", value=False)
+                            show_player_coordinates_cb = ui.checkbox("Játékosok koordinátáinak annotálása", value=False)
+
+                        # Jobb oldali oszlop, statisztikák és grafikonok opciói
+                        with ui.column().classes("gap-2").style("flex: 1; min-width: 0;"):
+                            with ui.row().classes("justify-center w-full"):
+                                ui.label("Statisztikák és grafikonok").classes("text-lg font-bold mb-2 text-yellow")
+                            show_player_activity_stats_cb = ui.checkbox("Játékos aktivitás statisztikák", value=True)
+                            show_players_per_half_graph_cb = ui.checkbox("Játékosok eloszlása térfélenként", value=True)
+                            show_offside_stats_cb = ui.checkbox("Lesek statisztikai ábrája", value=True)
+                            show_player_heatmaps_cb = ui.checkbox("Játékos hőtérképek", value=True)
+                            show_ball_heatmap_cb = ui.checkbox("Labda hőtérképe", value=True)
                     ui.button("Bezárás", on_click=advanced_dialog.close).classes("mt-4")
 
             with ui.column().classes("items-center gap-2"):
@@ -445,7 +459,6 @@ def analysis_config_page():
                             loader_dialog, 
                             page_container,
                             {
-                                # Checkbox értékek átadása
                                 "show_player_ellipses": show_player_ellipses_cb.value,
                                 "show_player_ids": show_player_ids_cb.value,
                                 "show_referees": show_referees_cb.value,
@@ -458,6 +471,11 @@ def analysis_config_page():
                                 "show_offside_flags": show_offside_flags_cb.value,
                                 "show_keypoints": show_keypoints_cb.value,
                                 "show_player_coordinates": show_player_coordinates_cb.value,
+                                "show_player_activity_stats": show_player_activity_stats_cb.value,
+                                "show_players_per_half_graph": show_players_per_half_graph_cb.value,
+                                "show_offside_stats": show_offside_stats_cb.value,
+                                "show_player_heatmaps": show_player_heatmaps_cb.value,
+                                "show_ball_heatmap": show_ball_heatmap_cb.value
                             })
                         ).classes("w-48 text-lg mt-2")
                 # Elemzés konfigurációs beállítások
