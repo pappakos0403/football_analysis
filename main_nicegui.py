@@ -19,6 +19,9 @@ INPUT_DIR.mkdir(exist_ok=True)
 OUTPUT_DIR = Path("output_videos")
 OUTPUT_DIR.mkdir(exist_ok=True)
 
+# Logó könyvtára
+Path("logo").mkdir(exist_ok=True)
+
 # Kiválasztott videó tárolása
 selected_video = None
 # Kiválasztott elemzett videó tárolása
@@ -103,14 +106,35 @@ def select_video_for_analysis(video_file: Path):
 # --- Kezdőlap ("/") ---
 @ui.page("/")
 def start_page():
-    with ui.column().classes("absolute-center items-center gap-24"):
-        # Kezdőlap címe
-        ui.label("Futballanalízis Alkalmazás").classes("text-3xl font-bold")
-        with ui.column().classes("gap-12 w-64"):
-            # Indítás gomb -> teszt oldalra navigál
-            ui.button("Indítás", on_click=lambda: ui.navigate.to("/main_page")).classes("w-full")
-            # Kilépés gomb -> alkalmazás leállítása
-            ui.button("Kilépés", on_click=app.shutdown).classes("w-full")
+    with ui.column().classes("w-full h-screen justify-between absolute-center items-center"):
+        
+        # --- FELSŐ SZEKCIÓ ---
+        with ui.column().classes("items-center pt-16 gap-8 mb-24"):
+            ui.image("/logo/logo.png").classes("w-96 h-auto rounded shadow")
+
+        with ui.column().classes("items-center gap-1"):
+            ui.label("JasmInsight futballanalízis rendszer").classes("text-2xl font-extrabold mb-4")
+            ui.markdown("*„A pályán minden mozdulat megmagyarázható. Csak elég sokáig kell figyelned, és tudnod kell, mit keress.*").classes("italic text-gray-300")
+            ui.markdown("Marcelo Bielsa").classes("text-medium text-gray-300")
+
+        # --- KÖZÉPSŐ GOMBOK ---
+        with ui.column().classes("items-center justify-center").style("flex-grow: 1"):
+            with ui.column().classes("gap-4 w-64"):
+                ui.button("Indítás", on_click=lambda: ui.navigate.to("/main_page")).classes("w-full")
+                ui.button("Beállítások", on_click=lambda: ui.navigate.to("/settings")).classes("w-full")
+                ui.button("Kilépés", on_click=app.shutdown).classes("w-full mb-6")
+
+        # --- ALSÓ SZEKCIÓ ---
+        with ui.column().classes("items-center pb-24 gap-1"):
+            ui.markdown("Szakdolgozati projekt").classes("text-sm")
+            ui.markdown("Széchenyi István Egyetem, Mérnökinformatikus BSc szak").classes("text-sm mb-8")
+            ui.markdown("https://github.com/pappakos0403/football_analysis").classes("text-sm text-gray-400 italic mb-2")
+            ui.markdown("Build v1.2 • 2025. június").classes("text-sm text-gray-400 italic")
+
+# --- Beállítások oldal ---
+@ui.page("/settings")
+def settings_page():
+    pass
 
 # --- Feltöltött videók oldala ("/uploaded_videos") ---
 @ui.page("/uploaded_videos")
@@ -459,6 +483,7 @@ def analysis_config_page():
                             loader_dialog, 
                             page_container,
                             {
+                                # Annotálás a kimeneti videón
                                 "show_player_ellipses": show_player_ellipses_cb.value,
                                 "show_player_ids": show_player_ids_cb.value,
                                 "show_referees": show_referees_cb.value,
@@ -471,6 +496,7 @@ def analysis_config_page():
                                 "show_offside_flags": show_offside_flags_cb.value,
                                 "show_keypoints": show_keypoints_cb.value,
                                 "show_player_coordinates": show_player_coordinates_cb.value,
+                                # Statisztikák és grafikonok
                                 "show_player_activity_stats": show_player_activity_stats_cb.value,
                                 "show_players_per_half_graph": show_players_per_half_graph_cb.value,
                                 "show_offside_stats": show_offside_stats_cb.value,
@@ -522,4 +548,5 @@ def main_page():
 # --- GUI indítása natív módban, teljes képernyőn ---
 app.add_static_files('/videos', INPUT_DIR)
 app.add_static_files('/analyzed_videos', OUTPUT_DIR)
-ui.run(native=True, fullscreen=True, title="Futballanalízis", dark=True)
+app.add_static_files('/logo', 'logo')
+ui.run(native=True, title="JasmInsight")
