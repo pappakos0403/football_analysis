@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 def closest_player_ids_filter(closest_player_ids_filtered):
     # Eredmény tárolása
     filtered_closest = {}
@@ -45,3 +47,23 @@ def closest_player_ids_filter(closest_player_ids_filtered):
             filtered_closest[frame_num] = (None, None)
 
     return filtered_closest
+
+# Megszámolja, hogy egy játékos hányszor volt labdabirtokló
+def count_ball_possessions_per_player(closest_player_ids_filtered: dict) -> dict:
+
+    possession_counter = defaultdict(int)
+    previous_player_id = None
+
+    for frame_id in sorted(closest_player_ids_filtered.keys()):
+        player_id, _ = closest_player_ids_filtered[frame_id]
+
+        if player_id is None:
+            previous_player_id = None
+            continue
+
+        if player_id != previous_player_id:
+            possession_counter[player_id] += 1
+
+        previous_player_id = player_id
+
+    return dict(possession_counter)

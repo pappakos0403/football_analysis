@@ -1,4 +1,5 @@
 import cv2
+from collections import defaultdict
 
 class PassCounter:
     def __init__(self):
@@ -15,6 +16,9 @@ class PassCounter:
         self.team2_accurate = 0
         self.team2_inaccurate = 0
 
+        # Játékosonként is mérjük
+        self.player_passes = defaultdict(lambda: {"accurate": 0, "inaccurate": 0})
+
     def process_passes_per_frame(self, closest_player_ids_filtered: dict, total_frames: int):
 
         for frame_num in range(total_frames):
@@ -27,14 +31,18 @@ class PassCounter:
                         # Pontos passz
                         if team_id == 1:
                             self.team1_accurate += 1
+                            self.player_passes[self.prev_player_id]["accurate"] += 1
                         else:
                             self.team2_accurate += 1
+                            self.player_passes[self.prev_player_id]["accurate"] += 1
                     else:
                         # Pontatlan passz
                         if self.prev_team_id == 1:
                             self.team1_inaccurate += 1
+                            self.player_passes[self.prev_player_id]["inaccurate"] += 1
                         elif self.prev_team_id == 2:
                             self.team2_inaccurate += 1
+                            self.player_passes[self.prev_player_id]["inaccurate"] += 1
 
                 # Frissítjük az előző játékost
                 self.prev_player_id = player_id
@@ -70,3 +78,10 @@ class PassCounter:
                         (10, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2)
 
         return frames
+    
+    def get_player_passes(self) -> dict:
+        """
+        Játékosonkénti passz statisztikák lekérése.
+        Formátum: {track_id: {'accurate': x, 'inaccurate': y}}
+        """
+        return dict(self.player_passes)

@@ -1,7 +1,7 @@
 import os
 import pickle
 import numpy as np
-from utils import load_video, generate_output_video, get_majority_team_sides, closest_player_ids_filter, save_video_thumbnail, get_players_with_minimum_presence, get_valid_player_colors, save_all_jersey_images
+from utils import load_video, generate_output_video, get_majority_team_sides, closest_player_ids_filter, count_ball_possessions_per_player, save_video_thumbnail, get_players_with_minimum_presence, get_valid_player_colors, save_all_jersey_images
 from tracker import Tracker
 from pitch_config import process_keypoint_annotations
 from heatmaps import generate_player_heatmaps, generate_ball_heatmap
@@ -10,6 +10,7 @@ from passing_measurement import PassCounter
 from player_positions_per_frame import plot_players_per_half_graph
 from player_activity import generate_player_activity_summary
 from offside_detection import OffsideDetector
+from player_statistics import generate_basic_player_statistics
 
 # Fő elemzési pipeline
 def run_analysis_pipeline(video_path: str, status_callback=None, config=None):
@@ -118,6 +119,7 @@ def run_analysis_pipeline(video_path: str, status_callback=None, config=None):
                                                       draw_goalkeeper_ids = config.get("show_player_ids", True)
                                                       )
     closest_player_ids_filtered = closest_player_ids_filter(tracker.closest_player_ids)
+    ball_possession_counter = count_ball_possessions_per_player(closest_player_ids_filtered)
 
     # Labdát birtokló játékosok annotálása
     update("Labdát birtokló játékosok annotálása...")
@@ -140,6 +142,7 @@ def run_analysis_pipeline(video_path: str, status_callback=None, config=None):
     draw_pass_statistics = config.get("show_pass_statistics")
     if draw_pass_statistics:
         annotated_frames = pass_counter.draw_pass_statistics(annotated_frames)
+    individual_pass_stats = pass_counter.get_player_passes()
 
     # Lesen álló játékosok detektálása
     update("Lesek detektálása és annotálása...")
@@ -164,6 +167,7 @@ def run_analysis_pipeline(video_path: str, status_callback=None, config=None):
             team1_color_rgb=tuple(np.array(tracker.team1_color) / 255.0),
             team2_color_rgb=tuple(np.array(tracker.team2_color) / 255.0)
         )
+    offside_frame_counts = dict(offside_detector.offsides_stats)
 
     # Csapat színek megjelenítése
     update("Csapatok jelölése és színezése...")
@@ -224,6 +228,18 @@ def run_analysis_pipeline(video_path: str, status_callback=None, config=None):
         valid_player_colors=valid_player_colors,
         track_id_to_team=tracker.track_id_to_team,
         video_name=video_stem
+    )
+
+    generate_basic_player_statistics(
+        players_tracks=tracks["players"],
+        track_id_to_team=tracker.track_id_to_team,
+        speed_estimator=tracker.speed_estimator,
+        individual_passes=individual_pass_stats,
+        ball_possession_count=ball_possession_counter,
+        offside_frame_counts=offside_frame_counts,
+        fps=fps,
+        output_dir=os.path.join(output_video_dir, "statistics"),
+        minimum_ratio=0.5
     )
 
     # Kimeneti videó mentése + előnézeti kép generálása
