@@ -278,7 +278,7 @@ def heatmaps_page():
 @ui.page("/statistics")
 def statistics_page():
 
-    with ui.column().classes("absolute-center items-center gap-4"):
+    with ui.column().classes("w-full max-w-screen-xl mx-auto px-4 py-6 gap-4 items-center"):
         ui.label("Statisztikák és grafikonok").classes("text-2xl font-semibold")
 
         # Statisztikák mappa betöltése az aktuális elemzett videó alapján
@@ -350,6 +350,35 @@ def statistics_page():
                                 .on('click', lambda i=flat_index: show_image(i)):
                             ui.image(rel_path).classes("w-40 h-28 rounded shadow object-cover")
                             ui.label(stat_path.name).classes("text-xs text-white text-center mt-1 max-w-40 truncate")
+
+        # Játékosonkénti statisztikák megjelenítése csoportosítva
+        shirt_dir_base = selected_analyzed_video.parent / "statistics"
+        team1_dir = shirt_dir_base / "team1shirt_images"
+        team2_dir = shirt_dir_base / "team2shirt_images"
+
+        def render_jersey_cards(title: str, jersey_dir: Path):
+            jersey_files = sorted(jersey_dir.glob("*.png"))
+            if not jersey_files:
+                return
+            ui.label(title).classes("text-xl font-semibold mt-6 text-white")
+
+            with ui.row().classes("justify-center flex-wrap gap-4 max-w-screen-xl"):
+                for jersey_file in jersey_files:
+                    flat_index = len(flat_file_list)
+                    flat_file_list.append(jersey_file)
+                    rel_path = f"/analyzed_videos/{jersey_file.relative_to('output_videos').as_posix()}"
+
+                    with ui.column().classes("items-center cursor-pointer"):
+                        with ui.card().classes("p-2 hover:bg-gray-700 transition-colors duration-200") \
+                                .on('click', lambda i=flat_index: show_image(i)):
+                            with ui.column().classes("items-center"):
+                                ui.image(rel_path).classes("w-32 h-auto object-contain")
+                                ui.label(jersey_file.stem).classes("text-xs text-white text-center mt-1")
+
+        if team1_dir.exists():
+            render_jersey_cards("Team1 játékosai", team1_dir)
+        if team2_dir.exists():
+            render_jersey_cards("Team2 játékosai", team2_dir)
 
         # Vissza gomb
         ui.button("Vissza", on_click=lambda: ui.navigate.to("/analyzed_video_detail")).classes("mt-6")
