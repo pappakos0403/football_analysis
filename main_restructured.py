@@ -1,7 +1,7 @@
 import os
 import pickle
 import numpy as np
-from utils import load_video, generate_output_video, get_majority_team_sides, closest_player_ids_filter, save_video_thumbnail
+from utils import load_video, generate_output_video, get_majority_team_sides, closest_player_ids_filter, save_video_thumbnail, get_players_with_minimum_presence, get_valid_player_colors, save_all_jersey_images
 from tracker import Tracker
 from pitch_config import process_keypoint_annotations
 from heatmaps import generate_player_heatmaps, generate_ball_heatmap
@@ -210,6 +210,21 @@ def run_analysis_pipeline(video_path: str, status_callback=None, config=None):
     if draw_ball_heatmap:
         generate_ball_heatmap(keypoint_data["ball_coordinates"], 
                             output_path=os.path.join(ball_dir, "ball_heatmap.png"))
+        
+    # Játékosok egyéni statisztikáinak elkészítése
+    update("Színes mezkártyák rajzolása és mentése...")
+    valid_players = get_players_with_minimum_presence(tracks["players"], minimum_ratio=0.5)
+    valid_player_colors = get_valid_player_colors(
+        valid_players,
+        tracker.track_id_to_team,
+        tracker.team1_color,
+        tracker.team2_color
+    )
+    save_all_jersey_images(
+        valid_player_colors=valid_player_colors,
+        track_id_to_team=tracker.track_id_to_team,
+        video_name=video_stem
+    )
 
     # Kimeneti videó mentése + előnézeti kép generálása
     update("Kimeneti videó generálása és thumbnail készítése...")

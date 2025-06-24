@@ -121,7 +121,6 @@ def start_page():
         with ui.column().classes("items-center justify-center").style("flex-grow: 1"):
             with ui.column().classes("gap-4 w-64"):
                 ui.button("Indítás", on_click=lambda: ui.navigate.to("/main_page")).classes("w-full")
-                ui.button("Beállítások", on_click=lambda: ui.navigate.to("/settings")).classes("w-full")
                 ui.button("Kilépés", on_click=app.shutdown).classes("w-full mb-6")
 
         # --- ALSÓ SZEKCIÓ ---
@@ -130,11 +129,6 @@ def start_page():
             ui.markdown("Széchenyi István Egyetem, Mérnökinformatikus BSc szak").classes("text-sm mb-8")
             ui.markdown("https://github.com/pappakos0403/football_analysis").classes("text-sm text-gray-400 italic mb-2")
             ui.markdown("Build v1.2 • 2025. június").classes("text-sm text-gray-400 italic")
-
-# --- Beállítások oldal ---
-@ui.page("/settings")
-def settings_page():
-    pass
 
 # --- Feltöltött videók oldala ("/uploaded_videos") ---
 @ui.page("/uploaded_videos")
@@ -549,4 +543,4 @@ def main_page():
 app.add_static_files('/videos', INPUT_DIR)
 app.add_static_files('/analyzed_videos', OUTPUT_DIR)
 app.add_static_files('/logo', 'logo')
-ui.run(native=True, title="JasmInsight")
+ui.run(native=True, fullscreen=True, dark=True, title="JasmInsight")
