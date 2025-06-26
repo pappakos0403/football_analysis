@@ -278,6 +278,70 @@ def heatmaps_page():
 @ui.page("/statistics")
 def statistics_page():
 
+    from player_statistics import load_player_stats
+
+    # Játékosonkénti statisztikák
+    statistics_dir = selected_analyzed_video.parent / "statistics"
+    stats_path = statistics_dir / "player_stats.json"
+    player_stats = load_player_stats(stats_path)
+
+    # Játékosonkénti statisztikák dialógusa
+    player_dialog = ui.dialog().props('persistent').classes("bg-gray-900 text-white")
+    with player_dialog:
+        with ui.column().classes("items-center gap-3"):
+            dialog_title = ui.label("").classes("text-xl font-bold")
+
+            jersey_image = ui.image().classes("w-48 h-auto")
+
+            stat_container = ui.column().classes("gap-3 text-sm items-start")
+
+            # Bezárás gomb
+            ui.button("Bezárás", on_click=player_dialog.close).classes("w-40 mt-8")
+
+    HUNGARIAN_LABELS = {
+        "presence_ratio": ("📊", "Detektálási arány"),
+        "distance_m": ("📏", "Megtett távolság (m)"),
+        "avg_speed_kmh": ("🚶", "Átlagsebesség (km/h)"),
+        "max_speed_kmh": ("🏃", "Max sebesség (km/h)"),
+        "accurate_passes": ("✅", "Pontos passzok száma"),
+        "inaccurate_passes": ("❌", "Pontatlan passzok száma"),
+        "ball_possession_count": ("⚽", "Labdabirtoklások száma"),
+        "offside_time": ("🚩", "Lesen töltött idő")
+    }
+
+    # Játékosok statisztikáinak megjelenítése
+    def show_player_stats(track_id: int):
+        stats = player_stats.get(str(track_id))
+        if not stats:
+            return
+
+        dialog_title.set_text(f"Játékos #{track_id} statisztikái")
+        stat_container.clear()
+
+        # Mez kép beállítása
+        jersey_path = statistics_dir / f"team{stats['team']}shirt_images" / f"{track_id}.png"
+        if jersey_path.exists():
+            jersey_image.set_source(jersey_path.as_posix())
+        else:
+            jersey_image.set_source("")
+
+        with stat_container:
+            ui.table(
+                columns=[
+                    {"name": "stat", "label": "Mutató", "field": "stat", "align": "center", "style": "width: 300px;"},
+                    {"name": "value", "label": "Érték", "field": "value", "align": "center", "style": "width: 300px;"}
+                ],
+                rows=[
+                    {"stat": f"{icon} {label}", "value": value}
+                    for key, value in stats.items()
+                    if key not in ("track_id", "team")
+                    for icon, label in [HUNGARIAN_LABELS.get(key, ("", key))]
+                ],
+                row_key="stat"
+            ).classes("w-full text-sm text-white bg-gray-800").style("border-radius: 8px; text-align: center;")
+        
+        player_dialog.open()
+
     with ui.column().classes("w-full max-w-screen-xl mx-auto px-4 py-6 gap-4 items-center"):
         ui.label("Statisztikák és grafikonok").classes("text-2xl font-semibold")
 
@@ -370,7 +434,7 @@ def statistics_page():
 
                     with ui.column().classes("items-center cursor-pointer"):
                         with ui.card().classes("p-2 hover:bg-gray-700 transition-colors duration-200") \
-                                .on('click', lambda i=flat_index: show_image(i)):
+                                .on('click', lambda tid=int(jersey_file.stem): show_player_stats(tid)):
                             with ui.column().classes("items-center"):
                                 ui.image(rel_path).classes("w-32 h-auto object-contain")
                                 ui.label(jersey_file.stem).classes("text-xs text-white text-center mt-1")
@@ -379,6 +443,9 @@ def statistics_page():
             render_jersey_cards("Team1 játékosai", team1_dir)
         if team2_dir.exists():
             render_jersey_cards("Team2 játékosai", team2_dir)
+
+        # Összehasonlítás gomb
+        ui.button("Összehasonlítás").classes("mt-6")
 
         # Vissza gomb
         ui.button("Vissza", on_click=lambda: ui.navigate.to("/analyzed_video_detail")).classes("mt-6")

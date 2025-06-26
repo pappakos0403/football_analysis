@@ -1,6 +1,7 @@
 import os
 import json
 from utils import get_players_with_minimum_presence, get_players_presence_ratios
+from pathlib import Path
 
 def generate_basic_player_statistics(players_tracks, 
                                      track_id_to_team, 
@@ -73,4 +74,7 @@ def generate_basic_player_statistics(players_tracks,
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(player_stats, f, indent=4, ensure_ascii=False)
 
-    print(f"[INFO] Játékos statisztikák elmentve: {output_path}")
+# JSON betöltése
+def load_player_stats(json_path: Path) -> dict:
+    with open(json_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
