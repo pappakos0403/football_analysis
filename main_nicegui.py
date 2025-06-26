@@ -445,10 +445,63 @@ def statistics_page():
             render_jersey_cards("Team2 játékosai", team2_dir)
 
         # Összehasonlítás gomb
-        ui.button("Összehasonlítás").classes("mt-6")
+        ui.button("Összehasonlítás", on_click=lambda: ui.navigate.to("/player_comparison")).classes("mt-6")
 
         # Vissza gomb
         ui.button("Vissza", on_click=lambda: ui.navigate.to("/analyzed_video_detail")).classes("mt-6")
+
+# --- Játékos összehasonlító oldal ---
+@ui.page("/player_comparison")
+def player_comparison_page():
+    from player_statistics import load_player_stats
+
+    stats_path = selected_analyzed_video.parent / "statistics" / "player_stats.json"
+    player_stats = load_player_stats(stats_path)
+
+    player_ids = sorted(player_stats.keys(), key=lambda x: int(x))
+    stat_keys = [
+        "presence_ratio", "distance_m", "avg_speed_kmh", "max_speed_kmh",
+        "accurate_passes", "inaccurate_passes", "ball_possession_count", "offside_time"
+    ]
+
+    left_labels = []
+    right_labels = []
+    selected_left = {"value": player_ids[0]}
+    selected_right = {"value": player_ids[1]}
+
+    def update_table():
+        for i, key in enumerate(stat_keys):
+            left_labels[i].text = str(player_stats[selected_left["value"]][key])
+            right_labels[i].text = str(player_stats[selected_right["value"]][key])
+
+    with ui.column().classes("items-center w-full max-w-screen-lg mx-auto p-8"):
+        ui.label("Játékos összehasonlító").classes("text-2xl font-semibold")
+
+        with ui.row().classes("justify-center items-center gap-4 mt-4"):
+            ui.select(player_ids, value=selected_left["value"],
+                      on_change=lambda e: (selected_left.update({"value": e.value}), update_table()),
+                      label="Bal oldali játékos")
+            ui.label("vs").classes("text-lg")
+            ui.select(player_ids, value=selected_right["value"],
+                      on_change=lambda e: (selected_right.update({"value": e.value}), update_table()),
+                      label="Jobb oldali játékos")
+
+        with ui.row().classes("justify-center items-start mt-6"):
+            with ui.column().classes("items-end text-right gap-1"):
+                for key in stat_keys:
+                    lbl = ui.label(str(player_stats[selected_left["value"]][key]))
+                    left_labels.append(lbl)
+
+            with ui.column().classes("items-center gap-1 px-8"):
+                for key in stat_keys:
+                    ui.label(key.replace("_", " ").capitalize())
+
+            with ui.column().classes("items-start text-left gap-1"):
+                for key in stat_keys:
+                    lbl = ui.label(str(player_stats[selected_right["value"]][key]))
+                    right_labels.append(lbl)
+
+        ui.button("Vissza", on_click=lambda: ui.navigate.to("/statistics")).classes("mt-6")
 
 # --- Videó kiválasztása elemzéshez ("/select_video_for_analysis") ---
 @ui.page("/select_video_for_analysis")
